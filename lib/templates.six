@@ -1,0 +1,223 @@
+/// Represents a point in the DOM at which a particular template may
+/// instantiate entities.
+class TemplateCollectionInstantiation {
+  constructor(template, opts) {
+    this._template = template
+
+    this.children = [] // inserted elements
+
+    opts = opts || {}
+    if (opts.parent)
+      this._parent = opts.parent
+    else
+      this._after = opts.after || template.template$
+  }
+
+  /// Clear UI content, optionally replacing with new data.
+  reset(collection) {
+    for (var i = 0; i < this.children.length; ++i)
+      this.children[i].remove()
+
+    this.children.length = 0
+
+    if (collection)
+      collection.forEach(model => { this.append(model).show() })
+  }
+
+  /// Instantiate template at a particular point in the already inserted
+  /// collection of elements and return a jquery selector to the inserted
+  /// element.
+  insert(model, idx) {
+    if (this.children.length <= idx)
+      return this.append(model)
+
+    var model$ = this._template.makeElement(model)
+    this.children[idx].before(model$)
+    this.children.splice(idx, 0, model$)
+
+    return model$
+  }
+
+  append(model) {
+    var model$ = this._template.makeElement(model)
+
+    if (this.children.length === 0) {
+      if (this._after)
+        this._after.after(model$)
+      else if (this._parent)
+        this._parent.append(model$)
+    }
+    else
+      this.children[this.children.length - 1].after(model$)
+
+    this.children.push(model$)
+
+    return model$
+  }
+}
+
+// various transforms
+var transforms = {
+  text: value => function(node, model) { node.html(value.call(this, model)) }
+}
+// default transform
+var setAttr = (attrName, value) =>
+  function(node, model) { node.attr(attrName, value.call(this, model)) }
+
+// resolve node and array of positions into descendant node
+var getNode = (node, pos) => {
+  pos.forEach(idx => {
+    node = $(node.children()[idx])
+  })
+  return node
+}
+
+var valComponent = /[^\$]+|\$[a-zA-Z_][a-zA-Z0-9_]+|\${[^}]+}/g
+
+/// Parse value returning a function that accepts a model and returns
+/// a string (based on the contents of the value template)
+var getValueFactory = value => {
+  var callbacks = [ ]
+  var _match
+  while ((_match = valComponent.exec(value))) {
+    (function () { // run in scope for various variables
+      var match = _match[0]
+      if (match[0] === '$') {
+        if (match[1] === '{') {
+          // with does not conform to strict mode... hmmm
+          var evalSt = 'with (model) { ' + match.slice(2, -1) + ' }'
+          callbacks.push(function (model) { return eval(evalSt) })
+        }
+        else {
+          // variable
+          var key = match.substring(1)
+          callbacks.push(model => { return model[key] })
+        }
+      }
+      else {
+        callbacks.push(model => { return match })
+      }
+    })()
+  }
+
+  if (callbacks.length === 1)
+    return callbacks[0]
+  else
+    return model => {
+      var ret = ''
+      callbacks.forEach(callback => {
+        ret += callback(model)
+      })
+      return ret
+    }
+}
+
+class Template {
+  /// Construct with name and element containing template data.
+  /// @detail The containing template is hidden and left in place as a marker
+  ///         from which created elements should be placed.
+  constructor(name, node) {
+    this.name = name
+    this.template$ = node
+
+    // array of substitutions to perform
+    this._subs = this.parseTemplate(node)
+    // console.log(this._subs)
+
+    node.hide() // should also be hidden by css to avoid glitching
+  }
+
+  // parse template and return an array of substitutions in the form:
+  // {
+  //   pos: array of indexes relating to node position.
+  //   transform: transform to perform on node
+  // }
+  parseTemplate(node) {
+    var subs = [],
+        pos = [] //< current position whilst searching for substitutions
+
+    recurse = node => {
+      _.each(node.data(), (value, key) => {
+        var match = /^t([A-Z][a-z]+)/.exec(key)
+        if (! match)
+          return
+        var attr = match[1].toLowerCase()
+
+        // remove data tag from template... jquery removeData doesn't
+        // seem to work
+        node.removeAttr('data-t-' + attr)
+
+        var getValue = getValueFactory(value)
+
+        var transform = transforms[attr]
+        transform = transform ? transform(getValue) :
+                                setAttr(attr, getValue)
+
+        subs.push({ pos: _.clone(pos), transform })
+      })
+
+      var idx = 0
+      pos.push(idx)
+
+      _.each(node.children(), child => {
+        child = $(child)
+        pos[pos.length - 1] = idx++
+        recurse(child)
+      })
+
+      pos.pop()
+    }
+
+    recurse(node)
+    return subs
+  }
+
+  makeElement(model) {
+    var node = this.template$.clone()
+    node.removeAttr('data-t-template')
+
+    model = model.attributes || model
+
+    this._subs.forEach(sub => {
+      var {pos, transform} = sub
+      var child = getNode(node, pos)
+      transform.call(child, child, model)
+    })
+
+    return node
+  }
+
+  /// Return version of template suitable for isntantiation many versions
+  /// of the model in a collection into the DOM at a certain point.
+  /// @param opts May contain 'after' and 'parent' which signify where
+  ///             to put created elements, by default they will be created
+  ///             after the point in the DOM at which the template lives.
+  instantiateCollection(opts) {
+    return new TemplateCollectionInstantiation(this, opts)
+  }
+}
+
+export class Templates {
+  constructor(opts) {
+    opts = opts || {}
+
+    this._templates = {}
+    this._container = opts.container || $('body')
+  }
+
+  // get template with given name
+  get(name) {
+    // first check cache
+    var existing = this._templates[name]
+    if (existing)
+      return existing
+
+    var node = this._container.find('[data-t-template=' + name + ']')
+    if (node.length === 0)
+      throw new Error('could not find template')
+    else if (node.length !== 1)
+      throw new Error('multiple matches for template')
+
+    return this._templates[name] = new Template(name, node)
+  }
+}

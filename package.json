@@ -1,0 +1,22 @@
+{
+  "name":    "domos",
+  "description": "Tools to support UI concepts using HTML5 data tags.",
+  "author": {
+    "name": "James Pike"
+  },
+  "version": "0.5.0",
+  "dependencies": {
+    "six-jpike": "0.0.14",
+    "requirejs": "2.1.5"
+  },
+  "devDependencies" : {
+    "mocha": "1.8.1",
+    "chai":  "1.4.2"
+  },
+  "engine": [
+    "node >=0.8.0"
+  ],
+  "scripts": {
+    "install": "six -co build lib/*.six && cp *.js build && cd build && r.js -o build.js out=domos.min.js && r.js -o build.js out=domos.src.js optimize=none"
+  }
+}

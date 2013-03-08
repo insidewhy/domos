@@ -1,0 +1,127 @@
+var SVG_NS = 'http://www.w3.org/2000/svg'
+
+export class Tooltip {
+  /// @param opts Options hash
+  constructor(opts) {
+    this.closed = true
+
+    _.extend(this, Backbone.Events)
+
+    this.opts = _.extend({
+      position:    'top-left',
+      arrowMargin:  10,
+      arrowHeight:  10,
+      className:   'tooltip',
+      closeText:   'close'
+    }, opts || {})
+
+    this.$ = $('<div/>', { class: this.opts.className })
+    // need empty href so can click in things like pentadactyl
+    this._closeLink = $('<a/>', { html: this.opts.closeText,
+                                  href: 'javascript:void(0)' })
+  }
+
+  content(fields) {
+    if (fields.html)
+      this.$.html(fields.html)
+
+    // TODO: append close text and title
+    if (fields.title) {
+    }
+  }
+
+  /// Make arrow for tooltip
+  /// @pre Tooltip is displayed and stored in this.$
+  _makeArrow(conf) {
+    var arrow = document.createElementNS(SVG_NS, 'svg'),
+        path  = document.createElementNS(SVG_NS, 'path')
+
+    arrow.setAttribute('version', '1.1')
+    arrow.style.position = 'absolute'
+
+    var h  = this.opts.arrowHeight,
+        sx = '0 ' + h,
+        l1 = h + ' -' + h,
+        l2 = h + ' ' + h,
+        sw = parseInt(this.$.css('border-top-width')), // stroke width
+        width = (h + sw) * 2
+
+    path.setAttributeNS(null, 'd', 'M ' + sx + ' l ' + l1 + ' l ' + l2)
+    arrow.appendChild(path)
+    arrow.style.top = -h + 'px'
+    arrow.style.width = width
+    arrow.style.height = h + sw
+    this.$.append(arrow)
+
+    if (conf.position === 'top-right') {
+      arrow.style.left = this.$.outerWidth() - conf.arrowMargin - width
+    }
+    else {
+      arrow.style.left = conf.arrowMargin
+    }
+
+    // copy attributes from template
+    path.style.strokeWidth = sw
+    path.style.stroke = this.$.css('border-top-color')
+    path.style.fill = this.$.css('background-color')
+
+    return arrow
+  }
+
+  /// Display element relative to node
+  display(node, fields, conf) {
+    this.closed = false
+    if (fields)
+      this.content(fields)
+
+    conf = _.extend({ topOffset: 0, leftOffset: 0 }, this.opts, conf || {})
+
+    var isTop  = conf.position === 'top-left' ||
+                 conf.position === 'top-right',
+        isLeft = conf.position === 'top-left' ||
+                 conf.position === 'bottom-left'
+
+    $('body').append(this.$)
+    this.$.append(this._closeLink)
+    this.$.fadeIn()
+
+    var { top, left } = node.offset()
+    top  = Math.floor(top + conf.topOffset) + conf.arrowHeight
+    left = Math.floor(left + conf.leftOffset)
+
+    if (isTop) {
+      // giving initial left of 0 is important to avoid interactions with
+      // right side shortening tooltip
+      this.$.css({ top: top + node.outerHeight(), left: 0 })
+    }
+
+    if (! isLeft) {
+      // reposition node to align right edges
+      this.$.css({ left: left + node.outerWidth() - this.$.outerWidth() })
+    }
+    else
+      this.$.css({ left })
+
+    this._makeArrow(conf)
+
+    this._closeLink.off('click')
+    if (conf.noClose) {
+      this._closeLink.hide()
+    }
+    else {
+      // this can't be in the constructor for some reason
+      this._closeLink.show()
+      this._closeLink.on('click', () => { this.close() })
+    }
+  }
+
+  close() {
+    if (this.closed)
+      return
+
+    this.closed = true
+    this.trigger('close')
+    this.$.fadeOut()
+  }
+}
+
