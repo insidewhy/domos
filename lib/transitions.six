@@ -1,5 +1,9 @@
 var SWITCH_ATTRS = ['opacity', 'width', 'height']
 
+// in chromium dimensions/opacity after transitions are not always exact
+// so allow this much deviation when testing for completion
+var VERY_SMALL = 0.00001
+
 export function transition(node, name, value, callback) {
   var changes
   if (typeof name === 'string') {
@@ -11,41 +15,70 @@ export function transition(node, name, value, callback) {
     callback = value
   }
 
-  var hideAttrs = [], showAttrs = []
+  var changeTypes = Object.keys(changes),
+      nChanges    = changeTypes.length
 
-  SWITCH_ATTRS.forEach(attr => {
-    if (changes[attr] !== undefined) {
-      if (changes[attr] === 0)
-        hideAttrs.push(attr)
-      else
-        showAttrs.push(attr)
+  // show node but only if we need to
+  if (changeTypes.some(type =>
+        SWITCH_ATTRS.indexOf(type) !== -1 &&
+        parseFloat(changes[type]) > VERY_SMALL))
+  {
+    node.show()
+  }
+
+  node.css(changes)
+
+  var pendingChanges = () =>
+    changeTypes.some(type =>
+      Math.abs(parseFloat(node.css(type))
+               - parseFloat(changes[type])) > VERY_SMALL)
+
+  if (pendingChanges()) {
+    var nod = node[0]
+
+    var handleTransition = e => {
+      if (! e) {
+        // boolean indicates transition was cancelled by another.
+        if (callback)
+          callback(true)
+        return
+      }
+
+      if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 &&
+          parseFloat(node.css(e.propertyName)) < VERY_SMALL)
+      {
+        node.css('display', 'none')
+      }
+
+      if (! pendingChanges()) {
+        delete nod.__domosTransition
+        nod.removeEventListener('transitionend', handleTransition)
+        nod.removeEventListener('webkitTransitionEnd', handleTransition)
+        if (callback)
+          callback()
+      }
     }
-  })
 
-  if (hideAttrs.length) {
-    var shouldBeHidden = () =>
-      hideAttrs.some(attr => parseFloat(node.css(attr)) === 0)
-
-    node.css(changes)
-    var isTransitioning = ! shouldBeHidden()
-
-    if (isTransitioning) {
-      node.one('transitionend webkitTransitionEnd', () => {
-        if (shouldBeHidden()) {
-          node[0].style.display = 'none'
-          if (callback)
-            callback()
-        }
-      })
+    if (nod.__domosTransition) {
+      nod.removeEventListener('transitionend', nod.__domosTransition)
+      nod.removeEventListener('webkitTransitionEnd', nod.__domosTransition)
+      // show it has cancelled
+      nod.__domosTransition(null)
     }
-    else {
-      node[0].style.display = 'none'
-      if (callback)
-        callback()
-    }
+    nod.__domosTransition = handleTransition
+
+    nod.addEventListener('transitionend', handleTransition)
+    nod.addEventListener('webkitTransitionEnd', handleTransition)
   }
   else {
-    node.show()
-    node.css(changes)
+    if (changeTypes.some(type =>
+          SWITCH_ATTRS.indexOf(type) !== -1 &&
+          parseFloat(changes[type]) < VERY_SMALL))
+    {
+        node.css('display', 'none')
+    }
+
+    if (callback)
+      callback()
   }
 }
