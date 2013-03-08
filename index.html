@@ -1,21 +1,43 @@
 <html>
   <head>
     <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
-    <script src="domos.min.js"></script>
+    <script src="domos.src.js"></script>
     <script type="text/javascript">
       $(document).ready(function() {
-        alert(domos.translate)
+        var block1 = $('#block1'),
+            block2 = $('#block2'),
+            block3 = $('#block3')
+
+        domos.transition(block1, 'opacity', 0, function() {
+          setTimeout(function() {
+            domos.transition(block1, 'opacity', 1, function(cancel) {
+              domos.transition(block2, 'opacity', 0, function() {
+                domos.transition(block3, 'height', 300, function() {
+                  // TODO: ?
+                })
+              })
+            })
+          }, 500)
+        })
       })
     </script>
     <style>
       #block1 {
         background-color: blue;
+        -webkit-transition: opacity 0.8s linear;
+        -moz-transition: opacity 0.8s linear;
+        -o-transition: opacity 0.8s linear;
+        transition: opacity 0.8s linear;
       }
       #block2 {
         background-color: green;
       }
       #block3 {
         background-color: red;
+        -webkit-transition: height 0.8s ease;
+        -moz-transition: height 0.8s ease;
+        -o-transition: height 0.8s ease;
+        transition: height 0.8s ease;
       }
       body >* {
         margin: 10px;
