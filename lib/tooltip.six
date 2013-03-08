@@ -1,5 +1,7 @@
 var SVG_NS = 'http://www.w3.org/2000/svg'
 
+import transition from './transitions'
+
 export class Tooltip {
   /// @param opts Options hash
   constructor(opts) {
@@ -83,7 +85,7 @@ export class Tooltip {
 
     $('body').append(this.$)
     this.$.append(this._closeLink)
-    this.$.fadeIn()
+    transition(this.$, 'opacity', 1)
 
     var { top, left } = node.offset()
     top  = Math.floor(top + conf.topOffset) + conf.arrowHeight
@@ -121,7 +123,7 @@ export class Tooltip {
 
     this.closed = true
     this.trigger('close')
-    this.$.fadeOut()
+    transition(this.$, 'opacity', 0)
   }
 }
 

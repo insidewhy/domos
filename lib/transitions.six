@@ -1,0 +1,51 @@
+var SWITCH_ATTRS = ['opacity', 'width', 'height']
+
+export function transition(node, name, value, callback) {
+  var changes
+  if (typeof name === 'string') {
+    changes = {}
+    changes[name] = value
+  }
+  else {
+    changes = name
+    callback = value
+  }
+
+  var hideAttrs = [], showAttrs = []
+
+  SWITCH_ATTRS.forEach(attr => {
+    if (changes[attr] !== undefined) {
+      if (changes[attr] === 0)
+        hideAttrs.push(attr)
+      else
+        showAttrs.push(attr)
+    }
+  })
+
+  if (hideAttrs.length) {
+    var shouldBeHidden = () =>
+      hideAttrs.some(attr => parseFloat(node.css(attr)) === 0)
+
+    node.css(changes)
+    var isTransitioning = ! shouldBeHidden()
+
+    if (isTransitioning) {
+      node.one('transitionend webkitTransitionEnd', () => {
+        if (shouldBeHidden()) {
+          node[0].style.display = 'none'
+          if (callback)
+            callback()
+        }
+      })
+    }
+    else {
+      node[0].style.display = 'none'
+      if (callback)
+        callback()
+    }
+  }
+  else {
+    node.show()
+    node.css(changes)
+  }
+}

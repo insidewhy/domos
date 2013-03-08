@@ -1,25 +1,30 @@
+import transition from './transitions'
+
 // runs a callback after an action has run on potentially many selectors
-var runTransition = (sel, action, callback) => {
+var runTransition = (sel, action, value, callback) => {
   if (! callback) {
-    sel[action]()
+    transition(sel, action, value)
     return
   }
 
-  var nCalls = sel.length
-  sel[action](() => {
+  var nCalls = sel.length, afterTransition = () => {
     if (! --nCalls)
       callback()
-  })
+  }
+
+  for (var i = 0; i < sel.length; ++i) {
+    transition($(sel[i]), action, value, afterTransition)
+  }
 }
 
 export var transitionTypes = {
   show: {
       // TODO: only if element is shown?
     undoAction(node)    { return 'hide' },
-    run(node, callback) { runTransition(node, 'fadeIn', callback) }
+    run(node, callback) { runTransition(node, 'opacity', 1, callback) }
   },
   hide: {
-    run(node, callback) { runTransition(node, 'fadeOut', callback) }
+    run(node, callback) { runTransition(node, 'opacity', 0, callback) }
   }
 }
 
@@ -82,7 +87,7 @@ export class States {
     if (transitions.hide && transitions.show) {
       // If there are both elements to fade out and in, then only start
       // fading in after the elements to fade out are gone.
-      runTransition(transitions.hide, 'fadeOut', () => {
+      runTransition(transitions.hide, 'opacity', 0, () => {
         delete transitions.hide
         this._runTransitions(transitions, runAfter)
       })
