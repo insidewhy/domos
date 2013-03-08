@@ -12,20 +12,23 @@ It can be used from as a require module, when require is not available it export
 API
 ===
 
+This changes some attributes on an HTML element. The callback is called when
+all corresponding css3 transitions have finished, or immediately if there are
+none. If the transition doesn't complete before another transition occurs on
+the element then the first argument "cancelled" will be true.
+
 ```javascript
   domos.transition($('#id'), 'opacity', 1, function (cancelled) {
-    // This function is called when all corresponding css3 transitions
-    // have finished, or immediately if there are none.
-    // If the transition doesn't complete before another transition
-    // occurs on the element then "cancelled" will be true.
   })
+```
 
+Changes multiple attributes in one go. If a transition causes
+width/height/opacity to reach 0 then the CSS style "display: none" is set on
+the node. Conversely "display: none" is removed if a transition causes the
+node to become visible again.
+
+```javascript
   domos.transition($('#id'), { opacity: 0, width: 0 }, function (cncld) {
-    // Changes multiple attributes in one go.
-    // If a transition causes width/height/opacity to reach 0 then the
-    // "display: none" is set on the node.
-    // Conversely "display: none" is removed if a transition causes the
-    // node to be visible again.
   })
 ```
 
