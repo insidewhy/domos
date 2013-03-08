@@ -8,3 +8,10 @@ It can be obtained from
  * minified    - http://domos.github.com/domos.min.js
 
 It can be used from as a require module, when require is not available it exports to the global object "window.domos".
+
+note
+====
+
+Please see: https://bugzil.la/849399
+
+CSS3 transitions are still buggy in firefox.
