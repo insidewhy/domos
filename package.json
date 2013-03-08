@@ -17,6 +17,6 @@
     "node >=0.8.0"
   ],
   "scripts": {
-    "install": "six -co build lib/*.six && cp *.js build && cd build && r.js -o build.js out=domos.min.js && r.js -o build.js out=domos.src.js optimize=none"
+    "install": "six -co build lib/*.six && cp *.js build && cd build && r.js -o build.js out=part.domos.min.js && r.js -o build.js out=part.domos.src.js optimize=none && cat prelude.js part.domos.src.js > domos.src.js && cat prelude.js part.domos.min.js > domos.min.js"
   }
 }
