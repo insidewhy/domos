@@ -27,6 +27,7 @@ define('transitions',['require','exports','module'],function (require, exports) 
       "height"
     ];
   var VERY_SMALL = 0.00001;
+  var FFX_SWITCH_BUG = /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent);
   var transition = exports.transition = function (node, name, value, callback) {
       var changes;
       if (typeof name === "string") {
@@ -48,42 +49,48 @@ define('transitions',['require','exports','module'],function (require, exports) 
             return Math.abs(parseFloat(node.css(type)) - parseFloat(changes[type])) > VERY_SMALL;
           }.bind(this));
         }.bind(this);
-      if (pendingChanges()) {
-        var nod = node[0];
-        var handleTransition = function (e) {
-            if (!e) {
-              if (callback)
-                callback(true);
-              return;
+      var transitionHelper = function () {
+          if (pendingChanges()) {
+            var nod = node[0];
+            var handleTransition = function (e) {
+                if (!e) {
+                  if (callback)
+                    callback(true);
+                  return;
+                }
+                if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 && parseFloat(node.css(e.propertyName)) < VERY_SMALL) {
+                  node.css("display", "none");
+                }
+                if (!pendingChanges()) {
+                  delete nod.__domosTransition;
+                  nod.removeEventListener("transitionend", handleTransition);
+                  nod.removeEventListener("webkitTransitionEnd", handleTransition);
+                  if (callback)
+                    callback();
+                }
+              }.bind(this);
+            if (nod.__domosTransition) {
+              nod.removeEventListener("transitionend", nod.__domosTransition);
+              nod.removeEventListener("webkitTransitionEnd", nod.__domosTransition);
+              nod.__domosTransition(null);
             }
-            if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 && parseFloat(node.css(e.propertyName)) < VERY_SMALL) {
+            nod.__domosTransition = handleTransition;
+            nod.addEventListener("transitionend", handleTransition);
+            nod.addEventListener("webkitTransitionEnd", handleTransition);
+          } else {
+            if (changeTypes.some(function (type) {
+                return SWITCH_ATTRS.indexOf(type) !== -1 && parseFloat(changes[type]) < VERY_SMALL;
+              }.bind(this))) {
               node.css("display", "none");
             }
-            if (!pendingChanges()) {
-              delete nod.__domosTransition;
-              nod.removeEventListener("transitionend", handleTransition);
-              nod.removeEventListener("webkitTransitionEnd", handleTransition);
-              if (callback)
-                callback();
-            }
-          }.bind(this);
-        if (nod.__domosTransition) {
-          nod.removeEventListener("transitionend", nod.__domosTransition);
-          nod.removeEventListener("webkitTransitionEnd", nod.__domosTransition);
-          nod.__domosTransition(null);
-        }
-        nod.__domosTransition = handleTransition;
-        nod.addEventListener("transitionend", handleTransition);
-        nod.addEventListener("webkitTransitionEnd", handleTransition);
-      } else {
-        if (changeTypes.some(function (type) {
-            return SWITCH_ATTRS.indexOf(type) !== -1 && parseFloat(changes[type]) < VERY_SMALL;
-          }.bind(this))) {
-          node.css("display", "none");
-        }
-        if (callback)
-          callback();
-      }
+            if (callback)
+              callback();
+          }
+        }.bind(this);
+      if (FFX_SWITCH_BUG)
+        setTimeout(transitionHelper, 10);
+      else
+        transitionHelper();
     };
 });
 if (typeof exports === 'object' && typeof define !== 'function') {
@@ -452,6 +459,8 @@ define('templates',['require','exports','module'],function (require, exports) {
               return;
             var attr = match[1].toLowerCase();
             node.removeAttr("data-t-" + attr);
+            if (attr === "template")
+              return;
             var getValue = getValueFactory(value);
             var transform = transforms[attr];
             transform = transform ? transform(getValue) : setAttr(attr, getValue);
@@ -472,15 +481,17 @@ define('templates',['require','exports','module'],function (require, exports) {
         recurse(node);
         return subs;
       };
-      Template.prototype.makeElement = function (model) {
-        var node = this.template$.clone();
-        node.removeAttr("data-t-template");
+      Template.prototype.updateElement = function (model, node) {
         model = model.attributes || model;
         this._subs.forEach(function (sub) {
           var pos = sub.pos, transform = sub.transform;
           var child = getNode(node, pos);
           transform.call(child, child, model);
         }.bind(this));
+      };
+      Template.prototype.makeElement = function (model) {
+        var node = this.template$.clone();
+        this.updateElement(model, node);
         return node;
       };
       Template.prototype.instantiateCollection = function (opts) {
