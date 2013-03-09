@@ -8,7 +8,7 @@ var VERY_SMALL = 0.00001
 // other browsers with the delay :(
 // https://bugzil.la/849399
 var FFX_SWITCH_BUG =
-  /Firefox\/1[0-9](?:\.[0-9]+)/.test(navigator.userAgent)
+  /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent)
 
 export function transition(node, name, value, callback) {
   var changes
