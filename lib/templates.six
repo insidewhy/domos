@@ -146,6 +146,8 @@ class Template {
         // remove data tag from template... jquery removeData doesn't
         // seem to work
         node.removeAttr('data-t-' + attr)
+        if (attr === 'template')
+          return
 
         var getValue = getValueFactory(value)
 
@@ -172,10 +174,7 @@ class Template {
     return subs
   }
 
-  makeElement(model) {
-    var node = this.template$.clone()
-    node.removeAttr('data-t-template')
-
+  updateElement(model, node) {
     model = model.attributes || model
 
     this._subs.forEach(sub => {
@@ -183,7 +182,11 @@ class Template {
       var child = getNode(node, pos)
       transform.call(child, child, model)
     })
+  }
 
+  makeElement(model) {
+    var node = this.template$.clone()
+    this.updateElement(model, node)
     return node
   }
 
