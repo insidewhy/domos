@@ -4,6 +4,12 @@ var SWITCH_ATTRS = ['opacity', 'width', 'height']
 // so allow this much deviation when testing for completion
 var VERY_SMALL = 0.00001
 
+// Nothing we can do but work around this firefox bug without afflicting
+// other browsers with the delay :(
+// https://bugzil.la/849399
+var FFX_SWITCH_BUG =
+  /Firefox\/1[0-9](?:\.[0-9]+)/.test(navigator.userAgent)
+
 export function transition(node, name, value, callback) {
   var changes
   if (typeof name === 'string') {
@@ -33,52 +39,59 @@ export function transition(node, name, value, callback) {
       Math.abs(parseFloat(node.css(type))
                - parseFloat(changes[type])) > VERY_SMALL)
 
-  if (pendingChanges()) {
-    var nod = node[0]
+  var transitionHelper = () => {
+    if (pendingChanges()) {
+      var nod = node[0]
 
-    var handleTransition = e => {
-      if (! e) {
-        // boolean indicates transition was cancelled by another.
-        if (callback)
-          callback(true)
-        return
+      var handleTransition = e => {
+        if (! e) {
+          // boolean indicates transition was cancelled by another.
+          if (callback)
+            callback(true)
+          return
+        }
+
+        if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 &&
+            parseFloat(node.css(e.propertyName)) < VERY_SMALL)
+        {
+          node.css('display', 'none')
+        }
+
+        if (! pendingChanges()) {
+          delete nod.__domosTransition
+          nod.removeEventListener('transitionend', handleTransition)
+          nod.removeEventListener('webkitTransitionEnd', handleTransition)
+          if (callback)
+            callback()
+        }
       }
 
-      if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 &&
-          parseFloat(node.css(e.propertyName)) < VERY_SMALL)
+      if (nod.__domosTransition) {
+        nod.removeEventListener('transitionend', nod.__domosTransition)
+        nod.removeEventListener('webkitTransitionEnd', nod.__domosTransition)
+        // show it has cancelled
+        nod.__domosTransition(null)
+      }
+      nod.__domosTransition = handleTransition
+
+      nod.addEventListener('transitionend', handleTransition)
+      nod.addEventListener('webkitTransitionEnd', handleTransition)
+    }
+    else {
+      if (changeTypes.some(type =>
+            SWITCH_ATTRS.indexOf(type) !== -1 &&
+            parseFloat(changes[type]) < VERY_SMALL))
       {
-        node.css('display', 'none')
+          node.css('display', 'none')
       }
 
-      if (! pendingChanges()) {
-        delete nod.__domosTransition
-        nod.removeEventListener('transitionend', handleTransition)
-        nod.removeEventListener('webkitTransitionEnd', handleTransition)
-        if (callback)
-          callback()
-      }
+      if (callback)
+        callback()
     }
-
-    if (nod.__domosTransition) {
-      nod.removeEventListener('transitionend', nod.__domosTransition)
-      nod.removeEventListener('webkitTransitionEnd', nod.__domosTransition)
-      // show it has cancelled
-      nod.__domosTransition(null)
-    }
-    nod.__domosTransition = handleTransition
-
-    nod.addEventListener('transitionend', handleTransition)
-    nod.addEventListener('webkitTransitionEnd', handleTransition)
   }
-  else {
-    if (changeTypes.some(type =>
-          SWITCH_ATTRS.indexOf(type) !== -1 &&
-          parseFloat(changes[type]) < VERY_SMALL))
-    {
-        node.css('display', 'none')
-    }
 
-    if (callback)
-      callback()
-  }
+  if (FFX_SWITCH_BUG)
+    setTimeout(transitionHelper, 10)
+  else
+    transitionHelper()
 }
