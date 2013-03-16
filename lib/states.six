@@ -7,8 +7,8 @@ var runTransition = (sel, action, value, callback) => {
     return
   }
 
-  var nCalls = sel.length, afterTransition = () => {
-    if (! --nCalls)
+  var nCalls = sel.length, afterTransition = cancelled => {
+    if (! cancelled && ! --nCalls)
       callback()
   }
 
