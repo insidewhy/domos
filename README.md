@@ -15,7 +15,7 @@ It can be used from as a require module, when require is not available it export
 Advantages to using pure Jquery
 ===============================
 * Callbacks contain the "cancelled" argument to allow detection of whether the transition completed fully or whether another attribute change cancelled them.
-* Allows transitions to be turned on and off from CSS, callbacks run immediately when no transition is necessary.
+* Allows transitions to be configured and turned off from CSS. Callbacks run immediately when no transition is necessary.
 * A state change can be performed on many elements and in this case a single callback is fired. The cancelled argument is false only if all of the transitions finished successfully.
 * Elements are automatically hidden and re-displayed as attributes cause them to shrink to 0 in (max) width/height or fade to 0 opacity. This removes ugly borders on elements with 0 width/height and avoids faded elements interfering with the flow of the page.
 
