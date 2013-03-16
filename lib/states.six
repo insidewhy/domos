@@ -1,30 +1,13 @@
 import transition from './transitions'
 
-// runs a callback after an action has run on potentially many selectors
-var runTransition = (sel, action, value, callback) => {
-  if (! callback) {
-    transition(sel, action, value)
-    return
-  }
-
-  var nCalls = sel.length, afterTransition = cancelled => {
-    if (! cancelled && ! --nCalls)
-      callback()
-  }
-
-  for (var i = 0; i < sel.length; ++i) {
-    transition($(sel[i]), action, value, afterTransition)
-  }
-}
-
 export var transitionTypes = {
   show: {
       // TODO: only if element is shown?
     undoAction(node)    { return 'hide' },
-    run(node, callback) { runTransition(node, 'opacity', 1, callback) }
+    run(node, callback) { transition(node, 'opacity', 1, callback) }
   },
   hide: {
-    run(node, callback) { runTransition(node, 'opacity', 0, callback) }
+    run(node, callback) { transition(node, 'opacity', 0, callback) }
   }
 }
 
@@ -74,7 +57,7 @@ export class States {
       this.state[type] = val
     }
 
-    // TODO: handle transition ordering better here
+    // TODO: handle ordering better here
     var transitions = this._getTransitions(type, val)
 
     var runAfter = () => {
@@ -87,7 +70,10 @@ export class States {
     if (transitions.hide && transitions.show) {
       // If there are both elements to fade out and in, then only start
       // fading in after the elements to fade out are gone.
-      runTransition(transitions.hide, 'opacity', 0, () => {
+      transition(transitions.hide, 'opacity', 0, cancelled => {
+        if (cancelled)
+          return
+
         delete transitions.hide
         this._runTransitions(transitions, runAfter)
       })
@@ -165,7 +151,7 @@ export class States {
     return transitions
   }
 
-  /// Restore state from object to UI avoiding all UI transition effects.
+  /// Restore state from object to UI avoiding all transition effects.
   /// @param state Accepts object like state attribute of type against value.
   restore(state) {
     this.state = state

@@ -10,6 +10,7 @@ var VERY_SMALL = 0.00001
 var FFX_SWITCH_BUG =
   /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent)
 
+/// Transition selector containing one or many HTML elements.
 export function transition(node, name, value, callback) {
   var changes
   if (typeof name === 'string') {
@@ -32,6 +33,30 @@ export function transition(node, name, value, callback) {
     node.show()
   }
 
+  var nTrans = node.length
+  if (! callback || nTrans === 1) {
+    transitionElement(node, changeTypes, changes, callback)
+  }
+  else {
+    var hasBeenCancelled = false, nTransitions = node.length
+
+    var onSingleTransition = cancelled => {
+      if (hasBeenCancelled)
+        return
+
+      if (cancelled)
+        callback(hasBeenCancelled = true)
+      else if (! --nTrans)
+        callback()
+    }
+
+    for (var i = 0; i < node.length; ++i)
+      transitionElement($(node[i]), changeTypes, changes, onSingleTransition)
+  }
+}
+
+/// Transition selector containing single HTML element.
+function transitionElement(node, changeTypes, changes, callback) {
   node.css(changes)
 
   var pendingChanges = () =>
