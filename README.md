@@ -55,6 +55,10 @@ node to become visible again.
 Including domos
 ===============
 ```html
+  <!-- can change versions and replace jquery with zepto -->
+  <script src="http://code.jquery.com/jquery-1.9.1.min"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.4/underscore-min"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/backbone.js/0.9.10/backbone-min"></script>
   <script src="http://nuisanceofcats.github.com/domos/domos.min.js"></script>
   <script type="text/javascript">
     domos.transition(...)
@@ -81,6 +85,7 @@ Using domos with require
       }
     }
   })
+  require('backbone') // backbone must be required first
   var domos = require('domos')
   domos.transition(...)
 ```
