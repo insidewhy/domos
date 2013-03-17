@@ -38,6 +38,37 @@ class TemplateCollectionInstantiation {
     return model$
   }
 
+  /// Return index of a particular element.
+  /// @param node Node to find index of (if it's already a number just
+  ///             return it)
+  indexOf(node) {
+    if (typeof node === 'number')
+      return node
+
+    return this.children.indexOf(node)
+  }
+
+  swap(a, b) {
+    var idxa = this.indexOf(a),
+        idxb = this.indexOf(b)
+
+    if (idxa === idxb)
+      return
+
+    if (idxa > idxb) {
+      var tmp = idxa
+      idxa = idxb
+      idxb = tmp
+    }
+
+    // remove nodes and re-insert
+    var b = this.children.splice(idxb, 1)[0]
+        a = this.children.splice(idxa, 1)[0]
+
+    this.insert(b, idxa)
+    this.insert(a, idxb)
+  }
+
   append(model) {
     var model$ = this._template.makeElement(model)
 
@@ -184,7 +215,11 @@ class Template {
     })
   }
 
+  /// Take a model and turn it into a node unless it already is one.
   makeElement(model) {
+    if (model instanceof $)
+      return model
+
     var node = this.template$.clone()
     this.updateElement(model, node)
     return node
