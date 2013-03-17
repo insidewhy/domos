@@ -11,19 +11,19 @@ It can be obtained from
 
 It can be used from as a require module, when require is not available it exports to the global object "window.domos".
 
-## Advantages to using Jquery transitions
+### Advantages to using Jquery transitions
 * Callbacks contain the "cancelled" argument to allow detection of whether the transition completed fully or whether another attribute change cancelled them.
 * Allows transitions to be configured and turned off from CSS. Callbacks run immediately when no transition is necessary.
 * A state change can be performed on many elements and in this case a single callback is fired. The cancelled argument is false only if all of the transitions finished successfully.
 * Elements are automatically hidden and re-displayed as attributes cause them to shrink to 0 in (max) width/height or fade to 0 opacity. This removes ugly borders on elements with 0 width/height and avoids faded elements interfering with the flow of the page.
 * Transitions should be smoother as they are performed by browser engine rather than JavaScript.
 
-## Disadvantages to using Jquery transitions
+### Disadvantages to using Jquery transitions
 * Elements will not transition in browsers that do not support CSS3 transitions (callbacks will fire immediately).
 
-# API
+## API
 
-## domos.transition
+### domos.transition
 This changes some attributes on an HTML element. The callback is called when
 all corresponding css3 transitions have finished, or immediately if there are
 none. If the transition doesn't complete before another transition occurs on
@@ -52,7 +52,7 @@ node to become visible again.
   })
 ```
 
-# Including domos
+## Including domos
 ```html
   <!-- can change versions and replace jquery with zepto -->
   <script src="http://code.jquery.com/jquery-1.9.1.min"></script>
@@ -64,7 +64,7 @@ node to become visible again.
   </script>
 ```
 
-# Using domos with require
+## Using domos with require
 ```javascript
   require.config({
     paths: {
@@ -72,7 +72,7 @@ node to become visible again.
       // Use whatever versions you want, jquery can be replaced with Zepto.
       jquery: 'http://code.jquery.com/jquery-1.9.1.min',
       underscore: 'http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.4/underscore-min',
-      backbone: 'http://cdnjs.cloudflare.com/ajax/libs/backbone.js/0.9.10/backbone-min',
+      backbone: 'http://cdnjs.cloudflare.com/ajax/libs/backbone.js/0.9.10/backbone-min'
     },
     shim: {
       jquery:     { exports: '$' },
@@ -88,11 +88,11 @@ node to become visible again.
   domos.transition(...)
 ```
 
-# Requirements
+## Requirements
 * [Jquery](http://jquery.com) or [Zepto](http://zeptojs.com).
 * [Backbone](http://backbonejs.org)
 
-# Test Page
+## Test Page
 http://nuisanceofcats.github.com/domos
 
 The bug https://bugzil.la/849399 currently affects display in Firefox 17+.
