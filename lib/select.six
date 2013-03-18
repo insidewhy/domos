@@ -134,7 +134,7 @@ class Select {
 
       isOpen = true
       // TODO: activate keyboard interaction etc.
-      this.$.css('height', '')
+      this.$.css('height', 'auto')
 
       highlightIdx(this._selectedIndex)
 
