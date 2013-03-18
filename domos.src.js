@@ -43,55 +43,73 @@ define('transitions',['require','exports','module'],function (require, exports) 
         }.bind(this))) {
         node.show();
       }
-      node.css(changes);
-      var pendingChanges = function () {
-          return changeTypes.some(function (type) {
-            return Math.abs(parseFloat(node.css(type)) - parseFloat(changes[type])) > VERY_SMALL;
-          }.bind(this));
-        }.bind(this);
-      var transitionHelper = function () {
-          if (pendingChanges()) {
-            var nod = node[0];
-            var handleTransition = function (e) {
-                if (!e) {
-                  if (callback)
-                    callback(true);
-                  return;
-                }
-                if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 && parseFloat(node.css(e.propertyName)) < VERY_SMALL) {
-                  node.css("display", "none");
-                }
-                if (!pendingChanges()) {
-                  delete nod.__domosTransition;
-                  nod.removeEventListener("transitionend", handleTransition);
-                  nod.removeEventListener("webkitTransitionEnd", handleTransition);
-                  if (callback)
-                    callback();
-                }
-              }.bind(this);
-            if (nod.__domosTransition) {
-              nod.removeEventListener("transitionend", nod.__domosTransition);
-              nod.removeEventListener("webkitTransitionEnd", nod.__domosTransition);
-              nod.__domosTransition(null);
-            }
-            nod.__domosTransition = handleTransition;
-            nod.addEventListener("transitionend", handleTransition);
-            nod.addEventListener("webkitTransitionEnd", handleTransition);
-          } else {
-            if (changeTypes.some(function (type) {
-                return SWITCH_ATTRS.indexOf(type) !== -1 && parseFloat(changes[type]) < VERY_SMALL;
-              }.bind(this))) {
-              node.css("display", "none");
-            }
-            if (callback)
+      var nTrans = node.length;
+      if (!callback || nTrans === 1) {
+        transitionElement(node, changeTypes, changes, callback);
+      } else {
+        var hasBeenCancelled = false, nTransitions = node.length;
+        var onSingleTransition = function (cancelled) {
+            if (hasBeenCancelled)
+              return;
+            if (cancelled)
+              callback(hasBeenCancelled = true);
+            else if (!--nTrans)
               callback();
-          }
-        }.bind(this);
-      if (FFX_SWITCH_BUG)
-        setTimeout(transitionHelper, 10);
-      else
-        transitionHelper();
+          }.bind(this);
+        for (var i = 0; i < node.length; ++i)
+          transitionElement($(node[i]), changeTypes, changes, onSingleTransition);
+      }
     };
+  function transitionElement(node, changeTypes, changes, callback) {
+    node.css(changes);
+    var pendingChanges = function () {
+        return changeTypes.some(function (type) {
+          return Math.abs(parseFloat(node.css(type)) - parseFloat(changes[type])) > VERY_SMALL;
+        }.bind(this));
+      }.bind(this);
+    var transitionHelper = function () {
+        if (pendingChanges()) {
+          var nod = node[0];
+          var handleTransition = function (e) {
+              if (!e) {
+                if (callback)
+                  callback(true);
+                return;
+              }
+              if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 && parseFloat(node.css(e.propertyName)) < VERY_SMALL) {
+                node.css("display", "none");
+              }
+              if (!pendingChanges()) {
+                delete nod.__domosTransition;
+                nod.removeEventListener("transitionend", handleTransition);
+                nod.removeEventListener("webkitTransitionEnd", handleTransition);
+                if (callback)
+                  callback();
+              }
+            }.bind(this);
+          if (nod.__domosTransition) {
+            nod.removeEventListener("transitionend", nod.__domosTransition);
+            nod.removeEventListener("webkitTransitionEnd", nod.__domosTransition);
+            nod.__domosTransition(null);
+          }
+          nod.__domosTransition = handleTransition;
+          nod.addEventListener("transitionend", handleTransition);
+          nod.addEventListener("webkitTransitionEnd", handleTransition);
+        } else {
+          if (changeTypes.some(function (type) {
+              return SWITCH_ATTRS.indexOf(type) !== -1 && parseFloat(changes[type]) < VERY_SMALL;
+            }.bind(this))) {
+            node.css("display", "none");
+          }
+          if (callback)
+            callback();
+        }
+      }.bind(this);
+    if (FFX_SWITCH_BUG)
+      setTimeout(transitionHelper, 10);
+    else
+      transitionHelper();
+  }
 });
 if (typeof exports === 'object' && typeof define !== 'function') {
   var define = function (factory) {
@@ -100,31 +118,18 @@ if (typeof exports === 'object' && typeof define !== 'function') {
 }
 define('states',['require','exports','module','./transitions'],function (require, exports) {
   var transition = require("./transitions").transition;
-  var runTransition = function (sel, action, value, callback) {
-      if (!callback) {
-        transition(sel, action, value);
-        return;
-      }
-      var nCalls = sel.length, afterTransition = function () {
-          if (!--nCalls)
-            callback();
-        }.bind(this);
-      for (var i = 0; i < sel.length; ++i) {
-        transition($(sel[i]), action, value, afterTransition);
-      }
-    }.bind(this);
   var transitionTypes = exports.transitionTypes = {
       show: {
         undoAction: function (node) {
           return "hide";
         },
         run: function (node, callback) {
-          runTransition(node, "opacity", 1, callback);
+          transition(node, "opacity", 1, callback);
         }
       },
       hide: {
         run: function (node, callback) {
-          runTransition(node, "opacity", 0, callback);
+          transition(node, "opacity", 0, callback);
         }
       }
     };
@@ -161,7 +166,9 @@ define('states',['require','exports','module','./transitions'],function (require
             this.trigger(type + "-" + val, val);
           }.bind(this);
         if (transitions.hide && transitions.show) {
-          runTransition(transitions.hide, "opacity", 0, function () {
+          transition(transitions.hide, "opacity", 0, function (cancelled) {
+            if (cancelled)
+              return;
             delete transitions.hide;
             this._runTransitions(transitions, runAfter);
           }.bind(this));
@@ -276,7 +283,6 @@ define('tooltip',['require','exports','module','./transitions'],function (requir
       };
       Tooltip.prototype._makeArrow = function (conf) {
         var arrow = document.createElementNS(SVG_NS, "svg"), path = document.createElementNS(SVG_NS, "path");
-        arrow.setAttribute("version", "1.1");
         arrow.style.position = "absolute";
         var h = this.opts.arrowHeight, sx = "0 " + h, l1 = h + " -" + h, l2 = h + " " + h, sw = parseInt(this.$.css("border-top-width")), width = (h + sw) * 2;
         path.setAttributeNS(null, "d", "M " + sx + " l " + l1 + " l " + l2);
@@ -373,6 +379,25 @@ define('templates',['require','exports','module'],function (require, exports) {
         this.children[idx].before(model$);
         this.children.splice(idx, 0, model$);
         return model$;
+      };
+      TemplateCollectionInstantiation.prototype.indexOf = function (node) {
+        if (typeof node === "number")
+          return node;
+        return this.children.indexOf(node);
+      };
+      TemplateCollectionInstantiation.prototype.swap = function (a, b) {
+        var idxa = this.indexOf(a), idxb = this.indexOf(b);
+        if (idxa === idxb)
+          return;
+        if (idxa > idxb) {
+          var tmp = idxa;
+          idxa = idxb;
+          idxb = tmp;
+        }
+        var b = this.children.splice(idxb, 1)[0];
+        a = this.children.splice(idxa, 1)[0];
+        this.insert(b, idxa);
+        this.insert(a, idxb);
       };
       TemplateCollectionInstantiation.prototype.append = function (model) {
         var model$ = this._template.makeElement(model);
@@ -490,6 +515,8 @@ define('templates',['require','exports','module'],function (require, exports) {
         }.bind(this));
       };
       Template.prototype.makeElement = function (model) {
+        if (model instanceof $)
+          return model;
         var node = this.template$.clone();
         this.updateElement(model, node);
         return node;
