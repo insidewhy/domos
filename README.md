@@ -1,9 +1,12 @@
 # domos
 
-Domos provides a nice JavaScript API for use with CSS3 transitions.
+Domos is a library for working with HTML5 and CSS3. It provides:
 
-It also supplies an event based UI state and template API built on top
-of the transition API that both use HTML5 data attributes.
+ * A JavaScript API for use with CSS3 transitions.
+ * Event based UI states based on data tags that use the transition framework.
+ * Event based templates based on data tags.
+ * Convert select boxes to allow the pointer to be styled.
+ * Tooltips with pointers.
 
 It can be obtained from
  * full source - http://nuisanceofcats.github.com/domos/domos.src.js
@@ -49,6 +52,29 @@ node to become visible again.
       console.log("opacity and/or width never reached 0")
     else
       console.log("opacity and width are 0 so 'display: none' has been set.")
+  })
+```
+
+### domos.select
+```javascript
+  /// This converts a select to a javascript implementation that contains
+  /// no stylings.
+  /// Now use .domos-select to style the element.
+  /// .domos-select >.button, .domos-select >.option and
+  /// .domos-select >.option.enabled can be used to style sub-components.
+  /// The button is automatically floated right and receives the width and
+  /// height equalling the height of the select box.
+  domos.enhanceSelects($('select'))
+```
+
+By default an upside down triangle is drawn as a button but a callback can be provided to draw a custom button.
+
+```javascript
+  domos.enhanceSelects($('select'), {
+    drawButton: function(button) {
+      // button is a jquery selector with it's width and height already
+      // set to the height of the select box.
+    }
   })
 ```
 

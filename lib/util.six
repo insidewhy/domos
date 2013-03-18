@@ -1,0 +1,5 @@
+/// Jquery .each uses this which is really inconvenient for ES6
+export var $each = (nodes, callback) => {
+  for (var i = 0; i < nodes.length; ++i)
+    callback($(nodes[i]), i)
+}

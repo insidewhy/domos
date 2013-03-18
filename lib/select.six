@@ -1,0 +1,171 @@
+import $each from './util'
+
+var SVG_NS = 'http://www.w3.org/2000/svg'
+
+var N_HEAD_NODES = 2
+
+var LINK_STYLE_OVERRIDES = {
+  color: 'inherit',
+  fontWeight: 'inherit',
+  textDecoration: 'inherit'
+}
+
+class Select {
+  constructor(node, options) {
+    _.extend(options, {
+      buttonPadding: 4,
+      class:         'domos-select',
+      buttonClass:   'button',
+      optionClass:   'option'
+    })
+
+    this._selectedIndex = node.prop('selectedIndex')
+
+    var mainText = $('<a/>', {
+      css: LINK_STYLE_OVERRIDES,
+      text: node.children(':selected').text(),
+      href: 'javascript:void(0)'
+    })
+
+    this.$ = $('<div/>', {
+      class: options.class,
+      css: { float: 'left', overflow: 'hidden' }
+    })
+
+    this.$.append(mainText)
+
+    var fromAttr = node[0].attributes, toAttr = this.$[0].attributes
+
+    this.$.css('display', node.css('display'))
+
+    // move data attributes from old select to new
+    for (var i = 0; i < fromAttr.length; ) {
+      var attr = fromAttr[0]
+      if (attr.name.indexOf('data-') === 0) {
+        fromAttr.removeNamedItem(attr.name)
+        toAttr.setNamedItem(attr)
+      }
+      else
+        ++i
+    }
+
+    var button = $('<div/>', {
+      class: options.buttonClass,
+      css: { float: 'right' }
+    })
+
+    this.$.append(button)
+
+    // only hide it rather than remove it so the value can still be
+    // queried
+    node.before(this.$).hide()
+    // fix height before adding options
+
+    var buttonPad = options.buttonPadding,
+        height = this.$.height() - (buttonPad * 2)
+
+    var mainHeight = this.$.css('height')
+
+    // fix height at height with just selected element and set padding
+    // right to 0 to allow button to be aligned
+    this.$.css({ height: this.$.height() })
+
+    button.css({ height, width: height, padding: options.buttonPadding })
+
+    if (options.drawButton) {
+      options.drawButton(button)
+    }
+    else {
+      var svg       = document.createElementNS(SVG_NS, 'svg'),
+          path      = document.createElementNS(SVG_NS, 'path')
+
+      path.setAttributeNS(null, 'd', 'M 0 ' + (height % 2)
+                                     + ' l ' + height + ' 0 '
+                                     + ' l -' + height / 2 + ' ' + height + ' z')
+      svg.appendChild(path)
+      button.append(svg)
+    }
+
+    var highlightedIdx = -1
+    var highlightIdx = idx => {
+      if (idx === highlightedIdx)
+        return
+
+      highlightedIdx = idx
+
+      var children = this.$.children()
+      for (var i = N_HEAD_NODES; i < children.length; ++i) {
+        var child = $(children[i])
+        if ((i - N_HEAD_NODES) === idx)
+          child.addClass('active')
+        else
+          child.removeClass('active')
+      }
+    }
+
+    var enableIdx = idx => {
+      if (this._selectedIndex === idx)
+        return
+
+      // change underlying select item
+      node.prop('selectedIndex', this._selectedIndex = idx)
+
+      // update text
+      mainText.text(node.children(':selected').text())
+    }
+
+    $each(node.children('option'), (option, idx) => {
+      var optionDiv = $('<div/>', {
+        text: option.text(),
+        class: options.optionClass
+      })
+
+      optionDiv.on('mouseenter', () => { highlightIdx(idx) })
+      optionDiv.on('click', () => { enableIdx(idx) })
+
+      this.$.append(optionDiv)
+      // TODO: add link instead and hook up events
+    })
+
+    var isOpen = false
+    var openSelect = () => {
+      if (isOpen)
+        return
+
+      isOpen = true
+      // TODO: activate keyboard interaction etc.
+      this.$.css('height', '')
+
+      highlightIdx(this._selectedIndex)
+
+      setTimeout(
+        () => {
+          var defoc = _.once(() => {
+            if (! isOpen)
+              return
+            this.$.css('height', mainHeight)
+            setTimeout(() => { isOpen = false }, 200)
+          })
+
+          // TODO: disable keyboard interaction etc.
+          $('body').one('click', defoc)
+          mainText.one('blur', defoc)
+        },
+        200)
+    }
+
+    this.$.on('click focus', openSelect)
+    mainText.on('click focus', openSelect)
+  }
+
+  /// Update main text based on selected index
+  _selectIndex(idx) {
+    var input = this.$.children('a')
+    input.text($(this.$.children()[idx + N_HEAD_NODES]).text())
+  }
+}
+
+export var enhanceSelects = (nodes, options) => {
+  options = options || {}
+  $each(nodes, node => { new Select(node, options) })
+}
