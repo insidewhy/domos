@@ -3,4 +3,6 @@ define(function(require, exports) {
   require('./tooltip')
   require('./templates')
   require('./transitions')
+  require('./select')
+  require('./util')
 })
