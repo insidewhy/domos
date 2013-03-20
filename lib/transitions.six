@@ -55,13 +55,16 @@ export function transition(node, name, value, callback) {
   }
 }
 
+var compCss = (node, type) =>
+  getComputedStyle(node[0], null)[type]
+
 /// Transition selector containing single HTML element.
 function transitionElement(node, changeTypes, changes, callback) {
   node.css(changes)
 
   var pendingChanges = () =>
     changeTypes.some(type =>
-      Math.abs(parseFloat(node.css(type))
+      Math.abs(parseFloat(compCss(node, type))
                - parseFloat(changes[type])) > VERY_SMALL)
 
   var transitionHelper = () => {
@@ -77,7 +80,7 @@ function transitionElement(node, changeTypes, changes, callback) {
         }
 
         if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 &&
-            parseFloat(node.css(e.propertyName)) < VERY_SMALL)
+            parseFloat(compCss(node, e.propertyName)) < VERY_SMALL)
         {
           node.css('display', 'none')
         }
