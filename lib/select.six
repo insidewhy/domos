@@ -112,7 +112,10 @@ class Select {
       mainText.text(node.children(':selected').text())
     }
 
-    $each(node.children('option'), (option, idx) => {
+    var selectOptions = node.children('option')
+    this.nOptions = selectOptions.length
+
+    $each(selectOptions, (option, idx) => {
       var optionDiv = $('<div/>', {
         text: option.text(),
         class: options.optionClass
@@ -136,11 +139,30 @@ class Select {
 
       highlightIdx(this._selectedIndex, true)
 
+      var onKeydown = e => {
+        if (e.which === 40) {
+          if (highlightedIdx < this.nOptions - 1)
+            highlightIdx(highlightedIdx + 1)
+        }
+        else if (e.which === 38) {
+          if (highlightedIdx > 0)
+            highlightIdx(highlightedIdx - 1)
+        }
+        else
+          return
+
+        enableIdx(highlightedIdx)
+        e.preventDefault()
+      }
+      $(document).on('keydown', onKeydown)
+
       setTimeout(
         () => {
           var defoc = _.once(() => {
             if (! isOpen)
               return
+
+            $(document).off('keydown', onKeydown)
 
             $each(this.$.children(), N_HEAD_NODES, node => {
               node.removeClass('active')
