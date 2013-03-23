@@ -38,6 +38,8 @@ export class States {
   ///                   complete.
   /// @param sel        Override parent by which to limit elements to change.
   set(type, val, callback, sel) {
+    var changedTypes = []
+
     if (val === null || val === 'null') {
       if (! this.state[type]) {
         this.trigger('redo-' + type + '-null')
@@ -46,6 +48,7 @@ export class States {
 
       // the field-change event will contain the string null
       val = 'null'
+      changedTypes.push(type)
       delete this.state[type]
     }
     else {
@@ -55,6 +58,7 @@ export class States {
       }
 
       this.state[type] = val
+      changedTypes.push(type)
     }
 
     // TODO: handle ordering better here
@@ -63,7 +67,7 @@ export class States {
     var runAfter = () => {
       if (callback)
         callback()
-      this.trigger('state-change', this.state)
+      this.trigger('state-change', this.state, changedTypes)
       this.trigger(type + '-' + val, val)
     }
 
