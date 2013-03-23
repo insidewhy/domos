@@ -1,5 +1,17 @@
 /// Jquery .each uses this which is really inconvenient for ES6
-export var $each = (nodes, callback) => {
-  for (var i = 0; i < nodes.length; ++i)
+export var $each = (nodes, from, to, callback) => {
+  if (callback === undefined) {
+    if (to === undefined) {
+      callback = from
+      from = 0
+    }
+    else {
+      callback = to
+    }
+
+    to = nodes.length
+  }
+
+  for (var i = from; i < to; ++i)
     callback($(nodes[i]), i)
 }

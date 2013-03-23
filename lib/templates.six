@@ -167,7 +167,7 @@ class Template {
     var subs = [],
         pos = [] //< current position whilst searching for substitutions
 
-    recurse = node => {
+    var recurse = node => {
       _.each(node.data(), (value, key) => {
         var match = /^t([A-Z][a-z]+)/.exec(key)
         if (! match)

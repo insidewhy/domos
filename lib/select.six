@@ -87,20 +87,18 @@ class Select {
     }
 
     var highlightedIdx = -1
-    var highlightIdx = idx => {
-      if (idx === highlightedIdx)
+    var highlightIdx = (idx, force) => {
+      if (! force && idx === highlightedIdx)
         return
 
       highlightedIdx = idx
 
-      var children = this.$.children()
-      for (var i = N_HEAD_NODES; i < children.length; ++i) {
-        var child = $(children[i])
+      $each(this.$.children(), N_HEAD_NODES, (node, i) => {
         if ((i - N_HEAD_NODES) === idx)
-          child.addClass('active')
+          node.addClass('active')
         else
-          child.removeClass('active')
-      }
+          node.removeClass('active')
+      })
     }
 
     var enableIdx = idx => {
@@ -134,15 +132,21 @@ class Select {
 
       isOpen = true
       // TODO: activate keyboard interaction etc.
-      this.$.css('height', 'auto')
+      this.$.css('height', 'auto').addClass('open')
 
-      highlightIdx(this._selectedIndex)
+      highlightIdx(this._selectedIndex, true)
 
       setTimeout(
         () => {
           var defoc = _.once(() => {
             if (! isOpen)
               return
+
+            $each(this.$.children(), N_HEAD_NODES, node => {
+              node.removeClass('active')
+            })
+
+            this.$.removeClass('open')
             this.$.css('height', mainHeight)
             setTimeout(() => { isOpen = false }, 200)
           })
