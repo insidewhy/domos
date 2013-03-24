@@ -52,9 +52,11 @@ export class States {
       changedTypes.push(type)
     }
 
-    // TODO: run opacity 0 transitions first if there are any
     var transitions = this._getTransitions(type, val)
 
+    this.trigger('pre-' + type + '-' + val, val)
+
+    // find "fade out" transitons
     var fadeOutTrans = $()
     for (var i = 0; i < transitions.length; ) {
       var action = transitions[i].action
@@ -81,10 +83,14 @@ export class States {
           isCancelled = true
 
           if (callback)
+            callback(cancelled)
+        }
+        else if (! --nTrans) {
+          if (callback)
             callback()
         }
-        else if (callback && ! --nTrans)
-          callback()
+        else
+          return
 
         this.trigger('state-change', this.state, changedTypes)
         this.trigger(type + '-' + val, val)
@@ -192,6 +198,8 @@ export class States {
         }
 
         var transitions = this._getTransitions(type, val)
+
+        this.trigger('pre-' + type + '-' + val, val)
 
         transitions.forEach(trans => {
           var cssType = trans.action.cssType,
