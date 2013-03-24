@@ -1,3 +1,5 @@
+import $each from './util'
+
 var SWITCH_ATTRS = ['opacity', 'width', 'height']
 
 // in chromium dimensions/opacity after transitions are not always exact
@@ -11,7 +13,7 @@ var FFX_SWITCH_BUG =
   /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent)
 
 /// Transition selector containing one or many HTML elements.
-export function transition(node, name, value, callback) {
+export function transition(nodes, name, value, callback) {
   var changes
   if (typeof name === 'string') {
     changes = {}
@@ -25,20 +27,23 @@ export function transition(node, name, value, callback) {
   var changeTypes = Object.keys(changes),
       nChanges    = changeTypes.length
 
-  // show node but only if we need to
-  if (changeTypes.some(type =>
-        SWITCH_ATTRS.indexOf(type) !== -1 &&
-        parseFloat(changes[type]) > VERY_SMALL))
-  {
-    node.show()
-  }
+  changeTypes.some(type => {
+    if (SWITCH_ATTRS.indexOf(type) !== -1 &&
+        parseFloat(changes[type]) > VERY_SMALL)
+    {
+      nodes.show()
+      // "fixes" lack of fade-in in both firefox/chrome, not a clue why and
+      // hoping this isn't some subtle trap in the html5 spec
+      $each(nodes, node => compCss(node, type))
+    }
+  })
 
-  var nTrans = node.length
+  var nTrans = nodes.length
   if (! callback || nTrans === 1) {
-    transitionElement(node, changeTypes, changes, callback)
+    transitionElement(nodes, changeTypes, changes, callback)
   }
   else {
-    var hasBeenCancelled = false, nTransitions = node.length
+    var hasBeenCancelled = false, nTransitions = nodes.length
 
     var onSingleTransition = cancelled => {
       if (hasBeenCancelled)
@@ -50,13 +55,26 @@ export function transition(node, name, value, callback) {
         callback()
     }
 
-    for (var i = 0; i < node.length; ++i)
-      transitionElement($(node[i]), changeTypes, changes, onSingleTransition)
+    $each(nodes, node => {
+      transitionElement(node, changeTypes, changes, onSingleTransition)
+    })
   }
 }
 
-var compCss = (node, type) =>
+// Return the computed style
+export var compCss = (node, type) =>
   getComputedStyle(node[0], null)[type]
+
+// Return the style if it is overriden, else the computed style.
+export var css = (node, type, newVal) => {
+  if (newVal !== undefined) {
+    node.css(type, newVal)
+  }
+  else {
+    var ret = node[0].style[type]
+    return ret === '' ?  compCss(node, type) : ret
+  }
+}
 
 /// Transition selector containing single HTML element.
 function transitionElement(node, changeTypes, changes, callback) {

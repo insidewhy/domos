@@ -1,15 +1,5 @@
-import transition from './transitions'
-
-export var transitionTypes = {
-  show: {
-      // TODO: only if element is shown?
-    undoAction(node)    { return 'hide' },
-    run(node, callback) { transition(node, 'opacity', 1, callback) }
-  },
-  hide: {
-    run(node, callback) { transition(node, 'opacity', 0, callback) }
-  }
-}
+import {transition, css} from './transitions'
+import $each from './util'
 
 export class States {
   constructor(opts) {
@@ -35,7 +25,8 @@ export class States {
   /// @param type       State type.
   /// @param val        Value of state.
   /// @param callback   Optional callback to run after all operations have
-  ///                   complete.
+  ///                   complete. Takes argument "cancelled" to determine
+  ///                   if all state changes were successful.
   /// @param sel        Override parent by which to limit elements to change.
   set(type, val, callback, sel) {
     var changedTypes = []
@@ -61,39 +52,56 @@ export class States {
       changedTypes.push(type)
     }
 
-    // TODO: handle ordering better here
+    // TODO: run opacity 0 transitions first if there are any
     var transitions = this._getTransitions(type, val)
 
-    var runAfter = () => {
-      if (callback)
-        callback()
-      this.trigger('state-change', this.state, changedTypes)
-      this.trigger(type + '-' + val, val)
+    var fadeOutTrans = $()
+    for (var i = 0; i < transitions.length; ) {
+      var action = transitions[i].action
+      if (action.cssType === 'opacity' && action.cssVal == 0) {
+        fadeOutTrans = fadeOutTrans.add(transitions[i].node)
+        transitions.splice(i, 1)
+      }
+      else
+        ++i
     }
 
-    if (transitions.hide && transitions.show) {
-      // If there are both elements to fade out and in, then only start
-      // fading in after the elements to fade out are gone.
-      transition(transitions.hide, 'opacity', 0, cancelled => {
-        if (cancelled)
-          return
+    var afterFadeOut = cancelled => {
+      if (cancelled) {
+        if (callback)
+          callback(cancelled)
+        return
+      }
 
-        delete transitions.hide
-        this._runTransitions(transitions, runAfter)
+      var nTrans = transitions.length, isCancelled = false
+      var runAfter = cancelled => {
+        if (cancelled) {
+          if (isCancelled)
+            return
+          isCancelled = true
+
+          if (callback)
+            callback()
+        }
+        else if (callback && ! --nTrans)
+          callback()
+
+        this.trigger('state-change', this.state, changedTypes)
+        this.trigger(type + '-' + val, val)
+      }
+
+      transitions.forEach(trans => {
+        transition(trans.node,
+                   trans.action.cssType,
+                   trans.action.cssVal,
+                   runAfter)
       })
     }
-    else
-      this._runTransitions(transitions, runAfter)
-  }
 
-  _runTransitions(transitions, callback) {
-    var actions = Object.keys(transitions)
-    var nActions = actions.length
-    actions.forEach(action => {
-      transitionTypes[action].run(transitions[action])
-      if (! --nActions && callback)
-        callback()
-    })
+    if (fadeOutTrans.length)
+      transition(fadeOutTrans, 'opacity', 0, afterFadeOut)
+    else
+      afterFadeOut()
   }
 
   _selectorFor(type) {
@@ -104,52 +112,69 @@ export class States {
   /// @param sel Optional override parent by which to limit elements to
   //         change (otherwise selectorMap/default is used).
   _getTransitions(type, val, sel) {
-    var transitions   = {},
-        addTransition = (name, node) => {
-          var existing = transitions[name]
-          transitions[name] = existing ? existing.add(node) : node
-        }
+    var transitions = []
 
     if (! sel)
       sel = this._selectorFor(type)
 
     var dataTag = 'data-' + this.statePrefix + type
-    _.each(sel.find('[' + dataTag + ']'), node => {
-      node = $(node)
-      var matches = {}, failures = {}
 
-      // $().data(type) converts string 'null' to js null
-      node.attr(dataTag).split('|').forEach(state => {
-        var colonIdx = state.indexOf(':'), action = 'show'
+    $each(sel.find('[' + dataTag + ']'), node => {
+      var cssType, cssVal, activated = false
+
+      var nod = node[0], currentState = nod.__domosState
+      if (currentState && currentState[type] === val)
+        return
+
+      activated = node.attr(dataTag).split('|').some(state => {
+        var colonIdx = state.indexOf(':')
+        cssType = 'opacity', cssVal = 1
         if (colonIdx !== -1) {
-          action = state.substr(colonIdx + 1)
-          if (! transitionTypes[action])
+          var action = state.substr(colonIdx + 1),
+              eqIdx = action.indexOf('=')
+          if (eqIdx === -1)
             throw new Error('invalid transition type ' + action)
-          state  = state.substr(colonIdx)
+
+          action = action.split(eqIdx)
+          cssType = action[0]
+          cssVal  = action[1]
+          state = state.substr(colonIdx)
         }
 
-        var result = state[0] === '!' ?
-          val !== state.substr(1) : val === state
-
-        if (result)
-          matches[action] = true
+        if (state[0] === '!' ? val !== state.substr(1) : val === state) {
+          transitions.push({ node, action: { cssType, cssVal } })
+          return true
+        }
         else
-          failures[action] = true
+          return false
       })
 
-      Object.keys(matches).forEach(action => {
-        delete failures[action]
-        addTransition(action, node)
-      })
-
-      Object.keys(failures).forEach(action => {
-        var getUndo = transitionTypes[action].undoAction
-        if (getUndo) {
-          var undo = getUndo(node)
-          if (undo)
-            addTransition(undo, node)
+      if (nod.__domosUndo) {
+        if (! activated) {
+          transitions.push({ node, action: nod.__domosUndo })
         }
-      })
+        else if (cssType !== nod.__domosUndo.cssType) {
+          transitions.push({ node, action: nod.__domosUndo })
+        }
+        else if (cssVal == css(node, cssType)) {
+          return
+        }
+
+        delete nod.__domosUndo
+      }
+
+      if (activated) {
+        if (! nod.__domosState)
+          nod.__domosState = {}
+
+        var prevCssVal = css(node, cssType)
+        nod.__domosState[type] = val
+        nod.__domosUndo = { cssType, cssVal: prevCssVal }
+      }
+      else {
+        if (nod.__domosState && nod.__domosState[type])
+          delete nod.__domosState[type]
+      }
     })
 
     return transitions
@@ -168,18 +193,16 @@ export class States {
 
         var transitions = this._getTransitions(type, val)
 
-        // remove animations for actions where possible...
-        if (transitions.hide) {
-          transitions.hide.hide()
-          delete transitions.hide
-        }
+        transitions.forEach(trans => {
+          var cssType = trans.action.cssType,
+              cssVal  = trans.action.cssVal,
+              node    = trans.node
 
-        if (transitions.show) {
-          transitions.show.show()
-          delete transitions.show
-        }
-
-        this._runTransitions(transitions)
+          var prevCssVal = css(node, cssType)
+          node.show()
+          css(node, cssType, cssVal)
+          node[0].__domosUndo = { cssType, cssVal: prevCssVal }
+        })
 
         this.trigger(type + '-' + val, val)
     })
