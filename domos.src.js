@@ -20,7 +20,28 @@ if (typeof exports === 'object' && typeof define !== 'function') {
     factory(require, exports);
   };
 }
-define('transitions',['require','exports','module'],function (require, exports) {
+define('util',['require','exports','module'],function (require, exports) {
+  var $each = exports.$each = function (nodes, from, to, callback) {
+      if (callback === undefined) {
+        if (to === undefined) {
+          callback = from;
+          from = 0;
+        } else {
+          callback = to;
+        }
+        to = nodes.length;
+      }
+      for (var i = from; i < to; ++i)
+        callback($(nodes[i]), i);
+    }.bind(this);
+});
+if (typeof exports === 'object' && typeof define !== 'function') {
+  var define = function (factory) {
+    factory(require, exports);
+  };
+}
+define('transitions',['require','exports','module','./util'],function (require, exports) {
+  var $each = require("./util").$each;
   var SWITCH_ATTRS = [
       "opacity",
       "width",
@@ -28,7 +49,7 @@ define('transitions',['require','exports','module'],function (require, exports) 
     ];
   var VERY_SMALL = 0.00001;
   var FFX_SWITCH_BUG = /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent);
-  var transition = exports.transition = function (node, name, value, callback) {
+  var transition = exports.transition = function (nodes, name, value, callback) {
       var changes;
       if (typeof name === "string") {
         changes = {};
@@ -38,16 +59,19 @@ define('transitions',['require','exports','module'],function (require, exports) 
         callback = value;
       }
       var changeTypes = Object.keys(changes), nChanges = changeTypes.length;
-      if (changeTypes.some(function (type) {
-          return SWITCH_ATTRS.indexOf(type) !== -1 && parseFloat(changes[type]) > VERY_SMALL;
-        }.bind(this))) {
-        node.show();
-      }
-      var nTrans = node.length;
+      changeTypes.some(function (type) {
+        if (SWITCH_ATTRS.indexOf(type) !== -1 && parseFloat(changes[type]) > VERY_SMALL) {
+          nodes.show();
+          $each(nodes, function (node) {
+            return compCss(node, type);
+          }.bind(this));
+        }
+      }.bind(this));
+      var nTrans = nodes.length;
       if (!callback || nTrans === 1) {
-        transitionElement(node, changeTypes, changes, callback);
+        transitionElement(nodes, changeTypes, changes, callback);
       } else {
-        var hasBeenCancelled = false, nTransitions = node.length;
+        var hasBeenCancelled = false, nTransitions = nodes.length;
         var onSingleTransition = function (cancelled) {
             if (hasBeenCancelled)
               return;
@@ -56,15 +80,27 @@ define('transitions',['require','exports','module'],function (require, exports) 
             else if (!--nTrans)
               callback();
           }.bind(this);
-        for (var i = 0; i < node.length; ++i)
-          transitionElement($(node[i]), changeTypes, changes, onSingleTransition);
+        $each(nodes, function (node) {
+          transitionElement(node, changeTypes, changes, onSingleTransition);
+        }.bind(this));
       }
     };
+  var compCss = exports.compCss = function (node, type) {
+      return getComputedStyle(node[0], null)[type];
+    }.bind(this);
+  var css = exports.css = function (node, type, newVal) {
+      if (newVal !== undefined) {
+        node.css(type, newVal);
+      } else {
+        var ret = node[0].style[type];
+        return ret === "" ? compCss(node, type) : ret;
+      }
+    }.bind(this);
   function transitionElement(node, changeTypes, changes, callback) {
     node.css(changes);
     var pendingChanges = function () {
         return changeTypes.some(function (type) {
-          return Math.abs(parseFloat(node.css(type)) - parseFloat(changes[type])) > VERY_SMALL;
+          return Math.abs(parseFloat(compCss(node, type)) - parseFloat(changes[type])) > VERY_SMALL;
         }.bind(this));
       }.bind(this);
     var transitionHelper = function () {
@@ -76,7 +112,7 @@ define('transitions',['require','exports','module'],function (require, exports) 
                   callback(true);
                 return;
               }
-              if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 && parseFloat(node.css(e.propertyName)) < VERY_SMALL) {
+              if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 && parseFloat(compCss(node, e.propertyName)) < VERY_SMALL) {
                 node.css("display", "none");
               }
               if (!pendingChanges()) {
@@ -116,23 +152,9 @@ if (typeof exports === 'object' && typeof define !== 'function') {
     factory(require, exports);
   };
 }
-define('states',['require','exports','module','./transitions'],function (require, exports) {
-  var transition = require("./transitions").transition;
-  var transitionTypes = exports.transitionTypes = {
-      show: {
-        undoAction: function (node) {
-          return "hide";
-        },
-        run: function (node, callback) {
-          transition(node, "opacity", 1, callback);
-        }
-      },
-      hide: {
-        run: function (node, callback) {
-          transition(node, "opacity", 0, callback);
-        }
-      }
-    };
+define('states',['require','exports','module','./transitions','./util'],function (require, exports) {
+  var __transitions = require("./transitions"), transition = __transitions.transition, css = __transitions.css;
+  var $each = require("./util").$each;
   var States = exports.States = function () {
       function States(opts) {
         _.extend(this, Backbone.Events);
@@ -144,12 +166,14 @@ define('states',['require','exports','module','./transitions'],function (require
         this.state = {};
       }
       States.prototype.set = function (type, val, callback, sel) {
+        var changedTypes = [];
         if (val === null || val === "null") {
           if (!this.state[type]) {
             this.trigger("redo-" + type + "-null");
             return;
           }
           val = "null";
+          changedTypes.push(type);
           delete this.state[type];
         } else {
           if (this.state[type] === val) {
@@ -157,73 +181,116 @@ define('states',['require','exports','module','./transitions'],function (require
             return;
           }
           this.state[type] = val;
+          changedTypes.push(type);
         }
         var transitions = this._getTransitions(type, val);
-        var runAfter = function () {
-            if (callback)
-              callback();
-            this.trigger("state-change", this.state);
-            this.trigger(type + "-" + val, val);
-          }.bind(this);
-        if (transitions.hide && transitions.show) {
-          transition(transitions.hide, "opacity", 0, function (cancelled) {
-            if (cancelled)
+        this.trigger("pre-" + type + "-" + val, val);
+        var fadeOutTrans = $();
+        for (var i = 0; i < transitions.length;) {
+          var action = transitions[i].action;
+          if (action.cssType === "opacity" && action.cssVal == 0) {
+            fadeOutTrans = fadeOutTrans.add(transitions[i].node);
+            transitions.splice(i, 1);
+          } else
+            ++i;
+        }
+        var afterFadeOut = function (cancelled) {
+            if (cancelled) {
+              if (callback)
+                callback(cancelled);
               return;
-            delete transitions.hide;
-            this._runTransitions(transitions, runAfter);
-          }.bind(this));
-        } else
-          this._runTransitions(transitions, runAfter);
-      };
-      States.prototype._runTransitions = function (transitions, callback) {
-        var actions = Object.keys(transitions);
-        var nActions = actions.length;
-        actions.forEach(function (action) {
-          transitionTypes[action].run(transitions[action]);
-          if (!--nActions && callback)
-            callback();
-        }.bind(this));
+            }
+            var nTrans = transitions.length, isCancelled = false;
+            var runAfter = function (cancelled) {
+                if (cancelled) {
+                  if (isCancelled)
+                    return;
+                  isCancelled = true;
+                  if (callback)
+                    callback(cancelled);
+                } else if (!--nTrans) {
+                  if (callback)
+                    callback();
+                } else
+                  return;
+                this.trigger("state-change", this.state, changedTypes);
+                this.trigger(type + "-" + val, val);
+              }.bind(this);
+            transitions.forEach(function (trans) {
+              transition(trans.node, trans.action.cssType, trans.action.cssVal, runAfter);
+            }.bind(this));
+          }.bind(this);
+        if (fadeOutTrans.length)
+          transition(fadeOutTrans, "opacity", 0, afterFadeOut);
+        else
+          afterFadeOut();
       };
       States.prototype._selectorFor = function (type) {
         return this._selectorMap[type] || this._defaultSelector;
       };
       States.prototype._getTransitions = function (type, val, sel) {
-        var transitions = {}, addTransition = function (name, node) {
-            var existing = transitions[name];
-            transitions[name] = existing ? existing.add(node) : node;
-          }.bind(this);
+        var transitions = [];
         if (!sel)
           sel = this._selectorFor(type);
         var dataTag = "data-" + this.statePrefix + type;
-        _.each(sel.find("[" + dataTag + "]"), function (node) {
-          node = $(node);
-          var matches = {}, failures = {};
-          node.attr(dataTag).split("|").forEach(function (state) {
-            var colonIdx = state.indexOf(":"), action = "show";
+        $each(sel.find("[" + dataTag + "]"), function (node) {
+          var cssType, cssVal, activated = false;
+          var nod = node[0], currentState = nod.__domosState;
+          if (currentState && currentState[type] === val)
+            return;
+          activated = node.attr(dataTag).split("|").some(function (state) {
+            var colonIdx = state.indexOf(":");
+            cssType = "opacity", cssVal = 1;
             if (colonIdx !== -1) {
-              action = state.substr(colonIdx + 1);
-              if (!transitionTypes[action])
+              var action = state.substr(colonIdx + 1), eqIdx = action.indexOf("=");
+              if (eqIdx === -1)
                 throw new Error("invalid transition type " + action);
+              action = action.split(eqIdx);
+              cssType = action[0];
+              cssVal = action[1];
               state = state.substr(colonIdx);
             }
-            var result = state[0] === "!" ? val !== state.substr(1) : val === state;
-            if (result)
-              matches[action] = true;
-            else
-              failures[action] = true;
+            if (state[0] === "!" ? val !== state.substr(1) : val === state) {
+              transitions.push({
+                node: node,
+                action: {
+                  cssType: cssType,
+                  cssVal: cssVal
+                }
+              });
+              return true;
+            } else
+              return false;
           }.bind(this));
-          Object.keys(matches).forEach(function (action) {
-            delete failures[action];
-            addTransition(action, node);
-          }.bind(this));
-          Object.keys(failures).forEach(function (action) {
-            var getUndo = transitionTypes[action].undoAction;
-            if (getUndo) {
-              var undo = getUndo(node);
-              if (undo)
-                addTransition(undo, node);
+          if (nod.__domosUndo) {
+            if (!activated) {
+              transitions.push({
+                node: node,
+                action: nod.__domosUndo
+              });
+            } else if (cssType !== nod.__domosUndo.cssType) {
+              transitions.push({
+                node: node,
+                action: nod.__domosUndo
+              });
+            } else if (cssVal == css(node, cssType)) {
+              return;
             }
-          }.bind(this));
+            delete nod.__domosUndo;
+          }
+          if (activated) {
+            if (!nod.__domosState)
+              nod.__domosState = {};
+            var prevCssVal = css(node, cssType);
+            nod.__domosState[type] = val;
+            nod.__domosUndo = {
+              cssType: cssType,
+              cssVal: prevCssVal
+            };
+          } else {
+            if (nod.__domosState && nod.__domosState[type])
+              delete nod.__domosState[type];
+          }
         }.bind(this));
         return transitions;
       };
@@ -235,15 +302,17 @@ define('states',['require','exports','module','./transitions'],function (require
             delete this.state[type];
           }
           var transitions = this._getTransitions(type, val);
-          if (transitions.hide) {
-            transitions.hide.hide();
-            delete transitions.hide;
-          }
-          if (transitions.show) {
-            transitions.show.show();
-            delete transitions.show;
-          }
-          this._runTransitions(transitions);
+          this.trigger("pre-" + type + "-" + val, val);
+          transitions.forEach(function (trans) {
+            var cssType = trans.action.cssType, cssVal = trans.action.cssVal, node = trans.node;
+            var prevCssVal = css(node, cssType);
+            node.show();
+            css(node, cssType, cssVal);
+            node[0].__domosUndo = {
+              cssType: cssType,
+              cssVal: prevCssVal
+            };
+          }.bind(this));
           this.trigger(type + "-" + val, val);
         }.bind(this));
       };
@@ -477,32 +546,32 @@ define('templates',['require','exports','module'],function (require, exports) {
       }
       Template.prototype.parseTemplate = function (node) {
         var subs = [], pos = [];
-        recurse = function (node) {
-          _.each(node.data(), function (value, key) {
-            var match = /^t([A-Z][a-z]+)/.exec(key);
-            if (!match)
-              return;
-            var attr = match[1].toLowerCase();
-            node.removeAttr("data-t-" + attr);
-            if (attr === "template")
-              return;
-            var getValue = getValueFactory(value);
-            var transform = transforms[attr];
-            transform = transform ? transform(getValue) : setAttr(attr, getValue);
-            subs.push({
-              pos: _.clone(pos),
-              transform: transform
-            });
-          }.bind(this));
-          var idx = 0;
-          pos.push(idx);
-          _.each(node.children(), function (child) {
-            child = $(child);
-            pos[pos.length - 1] = idx++;
-            recurse(child);
-          }.bind(this));
-          pos.pop();
-        }.bind(this);
+        var recurse = function (node) {
+            _.each(node.data(), function (value, key) {
+              var match = /^t([A-Z][a-z]+)/.exec(key);
+              if (!match)
+                return;
+              var attr = match[1].toLowerCase();
+              node.removeAttr("data-t-" + attr);
+              if (attr === "template")
+                return;
+              var getValue = getValueFactory(value);
+              var transform = transforms[attr];
+              transform = transform ? transform(getValue) : setAttr(attr, getValue);
+              subs.push({
+                pos: _.clone(pos),
+                transform: transform
+              });
+            }.bind(this));
+            var idx = 0;
+            pos.push(idx);
+            _.each(node.children(), function (child) {
+              child = $(child);
+              pos[pos.length - 1] = idx++;
+              recurse(child);
+            }.bind(this));
+            pos.pop();
+          }.bind(this);
         recurse(node);
         return subs;
       };
@@ -546,10 +615,167 @@ define('templates',['require','exports','module'],function (require, exports) {
       return Templates;
     }();
 });
-define('domos',['require','exports','module','./states','./tooltip','./templates','./transitions'],function(require, exports) {
+if (typeof exports === 'object' && typeof define !== 'function') {
+  var define = function (factory) {
+    factory(require, exports);
+  };
+}
+define('select',['require','exports','module','./util'],function (require, exports) {
+  var $each = require("./util").$each;
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var N_HEAD_NODES = 2;
+  var LINK_STYLE_OVERRIDES = {
+      color: "inherit",
+      fontWeight: "inherit",
+      textDecoration: "inherit"
+    };
+  var Select = function () {
+      function Select(node, options) {
+        _.extend(options, {
+          buttonPadding: 4,
+          class: "domos-select",
+          buttonClass: "button",
+          optionClass: "option"
+        });
+        this._selectedIndex = node.prop("selectedIndex");
+        var mainText = $("<a/>", {
+            css: LINK_STYLE_OVERRIDES,
+            text: node.children(":selected").text(),
+            href: "javascript:void(0)"
+          });
+        this.$ = $("<div/>", {
+          class: options.class,
+          css: {
+            float: "left",
+            overflow: "hidden"
+          }
+        });
+        this.$.append(mainText);
+        var fromAttr = node[0].attributes, toAttr = this.$[0].attributes;
+        this.$.css("display", node.css("display"));
+        for (var i = 0; i < fromAttr.length;) {
+          var attr = fromAttr[0];
+          if (attr.name.indexOf("data-") === 0) {
+            fromAttr.removeNamedItem(attr.name);
+            toAttr.setNamedItem(attr);
+          } else
+            ++i;
+        }
+        var button = $("<div/>", {
+            class: options.buttonClass,
+            css: { float: "right" }
+          });
+        this.$.append(button);
+        node.before(this.$).hide();
+        var buttonPad = options.buttonPadding, height = this.$.height() - buttonPad * 2;
+        var mainHeight = this.$.css("height");
+        this.$.css({ height: this.$.height() });
+        button.css({
+          height: height,
+          width: height,
+          padding: options.buttonPadding
+        });
+        if (options.drawButton) {
+          options.drawButton(button);
+        } else {
+          var svg = document.createElementNS(SVG_NS, "svg"), path = document.createElementNS(SVG_NS, "path");
+          path.setAttributeNS(null, "d", "M 0 " + height % 2 + " l " + height + " 0 " + " l -" + height / 2 + " " + height + " z");
+          svg.appendChild(path);
+          button.append(svg);
+        }
+        var highlightedIdx = -1;
+        var highlightIdx = function (idx, force) {
+            if (!force && idx === highlightedIdx)
+              return;
+            highlightedIdx = idx;
+            $each(this.$.children(), N_HEAD_NODES, function (node, i) {
+              if (i - N_HEAD_NODES === idx)
+                node.addClass("active");
+              else
+                node.removeClass("active");
+            }.bind(this));
+          }.bind(this);
+        var enableIdx = function (idx) {
+            if (this._selectedIndex === idx)
+              return;
+            node.prop("selectedIndex", this._selectedIndex = idx);
+            mainText.text(node.children(":selected").text());
+          }.bind(this);
+        var selectOptions = node.children("option");
+        this.nOptions = selectOptions.length;
+        $each(selectOptions, function (option, idx) {
+          var optionDiv = $("<div/>", {
+              text: option.text(),
+              class: options.optionClass
+            });
+          optionDiv.on("mouseenter", function () {
+            highlightIdx(idx);
+          }.bind(this));
+          optionDiv.on("click", function () {
+            enableIdx(idx);
+          }.bind(this));
+          this.$.append(optionDiv);
+        }.bind(this));
+        var isOpen = false;
+        var openSelect = function () {
+            if (isOpen)
+              return;
+            isOpen = true;
+            this.$.css("height", "auto").addClass("open");
+            highlightIdx(this._selectedIndex, true);
+            var onKeydown = function (e) {
+                if (e.which === 40) {
+                  if (highlightedIdx < this.nOptions - 1)
+                    highlightIdx(highlightedIdx + 1);
+                } else if (e.which === 38) {
+                  if (highlightedIdx > 0)
+                    highlightIdx(highlightedIdx - 1);
+                } else
+                  return;
+                enableIdx(highlightedIdx);
+                e.preventDefault();
+              }.bind(this);
+            $(document).on("keydown", onKeydown);
+            setTimeout(function () {
+              var defoc = _.once(function () {
+                  if (!isOpen)
+                    return;
+                  $(document).off("keydown", onKeydown);
+                  $each(this.$.children(), N_HEAD_NODES, function (node) {
+                    node.removeClass("active");
+                  }.bind(this));
+                  this.$.removeClass("open");
+                  this.$.css("height", mainHeight);
+                  setTimeout(function () {
+                    isOpen = false;
+                  }.bind(this), 200);
+                }.bind(this));
+              $("body").one("click", defoc);
+              mainText.one("blur", defoc);
+            }.bind(this), 200);
+          }.bind(this);
+        this.$.on("click focus", openSelect);
+        mainText.on("click focus", openSelect);
+      }
+      Select.prototype._selectIndex = function (idx) {
+        var input = this.$.children("a");
+        input.text($(this.$.children()[idx + N_HEAD_NODES]).text());
+      };
+      return Select;
+    }();
+  var enhanceSelects = exports.enhanceSelects = function (nodes, options) {
+      options = options || {};
+      $each(nodes, function (node) {
+        new Select(node, options);
+      }.bind(this));
+    }.bind(this);
+});
+define('domos',['require','exports','module','./states','./tooltip','./templates','./transitions','./select','./util'],function(require, exports) {
   require('./states')
   require('./tooltip')
   require('./templates')
   require('./transitions')
+  require('./select')
+  require('./util')
 })
 ;
