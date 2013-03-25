@@ -121,4 +121,5 @@ By default an upside down triangle is drawn as a button but a callback can be pr
 ## Test Page
 http://nuisanceofcats.github.com/domos
 
-The bug https://bugzil.la/849399 currently affects display in Firefox 17+.
+A bug with Firefox 17+ currently can cause flicker when fading from
+0 to 1 in certain circumstances.

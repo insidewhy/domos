@@ -14,3 +14,7 @@ client:
 
 clean:
 	rm -rf build
+
+gh-pages: client
+	git co gh-pages
+	cp build/domos.src.js build/domos.min.js .
