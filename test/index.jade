@@ -1,8 +1,8 @@
-<html>
-  <head>
-    <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
-    <script src="domos.src.js"></script>
-    <script type="text/javascript">
+html
+  head
+    script(src="http://code.jquery.com/jquery-1.9.1.min.js")
+    script(src="../domos.src.js")
+    script(type="text/javascript")
       $(document).ready(function() {
         var block1 = $('#block1'),
             block2 = $('#block2'),
@@ -20,8 +20,7 @@
           }, 10)
         })
       })
-    </script>
-    <style>
+    style
       #block1 {
         background-color: blue;
         -webkit-transition: opacity 0.8s linear, height 0.2s linear;
@@ -50,11 +49,8 @@
         padding: 0;
         font-size: 40pt;
       }
-    </style>
-  </head>
-  <body>
-    <div id="block3"><h1>A</h1></div>
-    <div id="block2"></div>
-    <div id="block1"></div>
-  </body>
-</html>
+  body
+    #block3
+      h1 A
+    #block2
+    #block1

@@ -2,7 +2,7 @@ module fs    = 'fs'
 module cp    = 'child_process'
 module growl = 'growl'
 
-var SOURCE_FILE      = /\.six$/,
+var SOURCE_FILE      = /\.(?:six|jade)$/,
     FILE_CHANGE_INCL = /^[^.]/
 
 var fileChange = (event, file) =>
@@ -12,12 +12,12 @@ var STUTTER_INTERVAL = 100
 var protectFromStutter = callback => {
   var nFired = 0
 
-  return () => {
+  return arg => {
     ++nFired
     var _wantedNFired = nFired
     setTimeout(() => {
       if (_wantedNFired === nFired)
-        callback()
+        callback(arg)
     }, STUTTER_INTERVAL)
   }
 }
@@ -28,9 +28,9 @@ var errorAlert = msg => {
   growl(msg, { name: 'talking.js', title: 'Failed' })
 }
 
-var recompile = protectFromStutter(() => {
-  console.log('recompiling library code')
-  var make = cp.spawn('make', ['client'])
+var recompile = protectFromStutter(arg => {
+  console.log('make', arg)
+  var make = cp.spawn('make', [arg])
   make.stderr.on('data', errorLog)
 
   make.on('exit', code => {
@@ -43,5 +43,10 @@ var recompile = protectFromStutter(() => {
 
 fs.watch('lib', (event, file) =>  {
   if (fileChange(event, file) && SOURCE_FILE.exec(file))
-    recompile()
+    recompile('package')
+})
+
+fs.watch('test', (event, file) =>  {
+  if (fileChange(event, file) && SOURCE_FILE.exec(file))
+    recompile('test-html')
 })

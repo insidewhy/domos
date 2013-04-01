@@ -8,7 +8,8 @@
   "dependencies": {
     "six-jpike": "0.0.14",
     "requirejs": "2.1.5",
-    "growl":     "1.7.0"
+    "growl":     "1.7.0",
+    "jade":      "0.28.2"
   },
   "devDependencies" : {
     "mocha": "1.8.1",
@@ -18,6 +19,6 @@
     "node >=0.8.0"
   ],
   "scripts": {
-    "install": "make client"
+    "install": "make package"
   }
 }
