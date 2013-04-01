@@ -39,7 +39,7 @@ It can be obtained from
  * full source - http://nuisanceofcats.github.com/domos/domos.src.js
  * minified    - http://nuisanceofcats.github.com/domos/domos.min.js
 
-It can be used from as a require module, when require is not available it exports to the global object "window.domos".
+Domos can optionally be used as a require module and when require is not available the API is exported to the global object "window.domos".
 
 ## API
 
