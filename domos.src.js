@@ -30,6 +30,17 @@ define('util',['require','exports','module'],function (require, exports) {
       for (var i = from; i < to; ++i)
         callback($(nodes[i]), i);
     }.bind(this);
+  var compCss = exports.compCss = function (node, type) {
+      return getComputedStyle(node[0], null)[type];
+    }.bind(this);
+  var css = exports.css = function (node, type, newVal) {
+      if (newVal !== undefined) {
+        node.css(type, newVal);
+      } else {
+        var ret = node[0].style[type];
+        return ret === "" ? compCss(node, type) : ret;
+      }
+    }.bind(this);
 });
 if (typeof exports === 'object' && typeof define !== 'function') {
   var define = function (factory) {
@@ -37,14 +48,14 @@ if (typeof exports === 'object' && typeof define !== 'function') {
   };
 }
 define('transitions',['require','exports','module','./util'],function (require, exports) {
-  var $each = require("./util").$each;
+  var __util = require("./util"), $each = __util.$each, compCss = __util.compCss, css = __util.css;
   var SWITCH_ATTRS = [
       "opacity",
       "width",
       "height"
     ];
   var VERY_SMALL = 0.00001;
-  var FFX_SWITCH_BUG = /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent);
+  var FFX_SWITCH_BUG = /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent), FIREFOX_NEEDS_SLEEP_FOR = 20;
   var transition = exports.transition = function (nodes, name, value, callback) {
       var changes;
       if (typeof name === "string") {
@@ -81,17 +92,6 @@ define('transitions',['require','exports','module','./util'],function (require, 
         }.bind(this));
       }
     };
-  var compCss = exports.compCss = function (node, type) {
-      return getComputedStyle(node[0], null)[type];
-    }.bind(this);
-  var css = exports.css = function (node, type, newVal) {
-      if (newVal !== undefined) {
-        node.css(type, newVal);
-      } else {
-        var ret = node[0].style[type];
-        return ret === "" ? compCss(node, type) : ret;
-      }
-    }.bind(this);
   function transitionElement(node, changeTypes, changes, callback) {
     node.css(changes);
     var pendingChanges = function () {
@@ -138,7 +138,7 @@ define('transitions',['require','exports','module','./util'],function (require, 
         }
       }.bind(this);
     if (FFX_SWITCH_BUG)
-      setTimeout(transitionHelper, 10);
+      setTimeout(transitionHelper, FIREFOX_NEEDS_SLEEP_FOR);
     else
       transitionHelper();
   }
@@ -483,6 +483,12 @@ define('templates',['require','exports','module'],function (require, exports) {
         return function (node, model) {
           node.html(value.call(this, model));
         };
+      }.bind(this),
+      if: function (value) {
+        return function (node, model, removals) {
+          if (!value.call(this, model))
+            removals.push(node);
+        };
       }.bind(this)
     };
   var setAttr = function (attrName, value) {
@@ -573,10 +579,14 @@ define('templates',['require','exports','module'],function (require, exports) {
       };
       Template.prototype.updateElement = function (model, node) {
         model = model.attributes || model;
+        var removals = [];
         this._subs.forEach(function (sub) {
           var pos = sub.pos, transform = sub.transform;
           var child = getNode(node, pos);
-          transform.call(child, child, model);
+          transform.call(child, child, model, removals);
+        }.bind(this));
+        removals.forEach(function (node) {
+          node.remove();
         }.bind(this));
       };
       Template.prototype.makeElement = function (model) {
