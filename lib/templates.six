@@ -89,7 +89,13 @@ class TemplateCollectionInstantiation {
 
 // various transforms
 var transforms = {
-  text: value => function(node, model) { node.html(value.call(this, model)) }
+  text: value => function(node, model) {
+    node.html(value.call(this, model))
+  },
+  if: value => function(node, model, removals) {
+    if (! value.call(this, model))
+      removals.push(node)
+  }
 }
 // default transform
 var setAttr = (attrName, value) =>
@@ -106,7 +112,7 @@ var getNode = (node, pos) => {
 var valComponent = /[^\$]+|\$[a-zA-Z_][a-zA-Z0-9_]+|\${[^}]+}/g
 
 /// Parse value returning a function that accepts a model and returns
-/// a string (based on the contents of the value template)
+/// a string or boolean (based on the contents of the value template)
 var getValueFactory = value => {
   var callbacks = [ ]
   var _match
@@ -122,11 +128,11 @@ var getValueFactory = value => {
         else {
           // variable
           var key = match.substring(1)
-          callbacks.push(model => { return model[key] })
+          callbacks.push(model => model[key])
         }
       }
       else {
-        callbacks.push(model => { return match })
+        callbacks.push(model => match)
       }
     })()
   }
@@ -208,11 +214,15 @@ class Template {
   updateElement(model, node) {
     model = model.attributes || model
 
+    var removals = []
+
     this._subs.forEach(sub => {
       var {pos, transform} = sub
       var child = getNode(node, pos)
-      transform.call(child, child, model)
+      transform.call(child, child, model, removals)
     })
+
+    removals.forEach(node => { node.remove() })
   }
 
   /// Take a model and turn it into a node unless it already is one.
