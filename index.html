@@ -1,60 +1,44 @@
-<html>
-  <head>
-    <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
-    <script src="domos.src.js"></script>
-    <script type="text/javascript">
-      $(document).ready(function() {
-        var block1 = $('#block1'),
-            block2 = $('#block2'),
-            block3 = $('#block3')
-
-        domos.transition(block1, { height: 200, opacity: 0 }, function() {
-          setTimeout(function() {
-            domos.transition(block1, 'opacity', 1, function(cancel) {
-              domos.transition(block2, 'opacity', 0, function() {
-                domos.transition(block3, 'height', 300, function() {
-                  // TODO: ?
-                })
-              })
-            })
-          }, 10)
+<html><head><script src="http://code.jquery.com/jquery-1.9.1.min.js"></script><script src="../domos.src.js"></script><script type="text/javascript">$(document).ready(function() {
+  var block1 = $('#block1'),
+      block2 = $('#block2'),
+      block3 = $('#block3')
+      
+  domos.transition(block1, { height: 200, opacity: 0 }, function() {
+    setTimeout(function() {
+      domos.transition(block1, 'opacity', 1, function(cancel) {
+        domos.transition(block2, 'opacity', 0, function() {
+          domos.transition(block3, 'height', 300, function() {
+            // TODO: ?
+          })
         })
       })
-    </script>
-    <style>
-      #block1 {
-        background-color: blue;
-        -webkit-transition: opacity 0.8s linear, height 0.2s linear;
-        -moz-transition: opacity 0.8s linear, height 0.2s linear;
-        -o-transition: opacity 0.8s linear, height 0.2s linear;
-        transition: opacity 0.8s linear, height 0.2s linear;
-      }
-      #block2 {
-        background-color: green;
-      }
-      #block3 {
-        background-color: red;
-        -webkit-transition: height 0.8s ease;
-        -moz-transition: height 0.8s ease;
-        -o-transition: height 0.8s ease;
-        transition: height 0.8s ease;
-      }
-      body >* {
-        margin: 10px;
-        float: left;
-        width: 100px;
-        height: 100px;
-      }
-      h1 {
-        margin: 0;
-        padding: 0;
-        font-size: 40pt;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="block3"><h1>A</h1></div>
-    <div id="block2"></div>
-    <div id="block1"></div>
-  </body>
-</html>
+    }, 10)
+  })
+})</script><style>#block1 {
+  background-color: blue;
+  -webkit-transition: opacity 0.8s linear, height 0.2s linear;
+  -moz-transition: opacity 0.8s linear, height 0.2s linear;
+  -o-transition: opacity 0.8s linear, height 0.2s linear;
+  transition: opacity 0.8s linear, height 0.2s linear;
+}
+#block2 {
+  background-color: green;
+}
+#block3 {
+  background-color: red;
+  -webkit-transition: height 0.8s ease;
+  -moz-transition: height 0.8s ease;
+  -o-transition: height 0.8s ease;
+  transition: height 0.8s ease;
+}
+body >* {
+  margin: 10px;
+  float: left;
+  width: 100px;
+  height: 100px;
+}
+h1 {
+  margin: 0;
+  padding: 0;
+  font-size: 40pt;
+}</style></head><body><div id="block3"><h1>A</h1></div><div id="block2"></div><div id="block1"></div></body></html>

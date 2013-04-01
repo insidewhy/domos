@@ -148,11 +148,11 @@ if (typeof exports === 'object' && typeof define !== 'function') {
     factory(require, exports);
   };
 }
-define('states',['require','exports','module','./transitions','./util'],function (require, exports) {
-  var __transitions = require("./transitions"), transition = __transitions.transition, css = __transitions.css;
-  var $each = require("./util").$each;
-  var States = exports.States = function () {
-      function States(opts) {
+define('state',['require','exports','module','./transitions','./util'],function (require, exports) {
+  var transition = require("./transitions").transition;
+  var __util = require("./util"), $each = __util.$each, css = __util.css;
+  var State = exports.State = function () {
+      function State(opts) {
         _.extend(this, Backbone.Events);
         if (!opts)
           opts = {};
@@ -161,11 +161,11 @@ define('states',['require','exports','module','./transitions','./util'],function
         this.statePrefix = opts.statePrefix || "s-";
         this.state = {};
       }
-      States.prototype.set = function (type, val, callback, sel) {
+      State.prototype.set = function (type, val, callback, sel) {
         var changedTypes = [];
         if (val === null || val === "null") {
           if (!this.state[type]) {
-            this.trigger("redo-" + type + "-null");
+            this._trigger("redo", type, "null");
             return;
           }
           val = "null";
@@ -173,14 +173,14 @@ define('states',['require','exports','module','./transitions','./util'],function
           delete this.state[type];
         } else {
           if (this.state[type] === val) {
-            this.trigger("redo-" + type + "-" + val, val);
+            this._trigger("redo", type, val);
             return;
           }
           this.state[type] = val;
           changedTypes.push(type);
         }
         var transitions = this._getTransitions(type, val);
-        this.trigger("pre-" + type + "-" + val, val);
+        this._trigger("before", type, val);
         var fadeOutTrans = $();
         for (var i = 0; i < transitions.length;) {
           var action = transitions[i].action;
@@ -209,8 +209,8 @@ define('states',['require','exports','module','./transitions','./util'],function
                     callback();
                 } else
                   return;
+                this._trigger(type, val);
                 this.trigger("state-change", this.state, changedTypes);
-                this.trigger(type + "-" + val, val);
               }.bind(this);
             transitions.forEach(function (trans) {
               transition(trans.node, trans.action.cssType, trans.action.cssVal, runAfter);
@@ -221,10 +221,10 @@ define('states',['require','exports','module','./transitions','./util'],function
         else
           afterFadeOut();
       };
-      States.prototype._selectorFor = function (type) {
+      State.prototype._selectorFor = function (type) {
         return this._selectorMap[type] || this._defaultSelector;
       };
-      States.prototype._getTransitions = function (type, val, sel) {
+      State.prototype._getTransitions = function (type, val, sel) {
         var transitions = [];
         if (!sel)
           sel = this._selectorFor(type);
@@ -290,7 +290,18 @@ define('states',['require','exports','module','./transitions','./util'],function
         }.bind(this));
         return transitions;
       };
-      States.prototype.restore = function (state) {
+      State.prototype._trigger = function (prefix, type, val) {
+        if (!val) {
+          val = type;
+          type = prefix;
+          prefix = "";
+        } else {
+          prefix = prefix + ":";
+        }
+        this.trigger(prefix + type + "=" + val, val);
+        this.trigger(prefix + type, val);
+      };
+      State.prototype.restore = function (state) {
         this.state = state;
         _.each(state, function (val, type) {
           if (val === null || val === "null") {
@@ -298,7 +309,7 @@ define('states',['require','exports','module','./transitions','./util'],function
             delete this.state[type];
           }
           var transitions = this._getTransitions(type, val);
-          this.trigger("pre-" + type + "-" + val, val);
+          this._trigger("before", type, val);
           transitions.forEach(function (trans) {
             var cssType = trans.action.cssType, cssVal = trans.action.cssVal, node = trans.node;
             var prevCssVal = css(node, cssType);
@@ -309,10 +320,10 @@ define('states',['require','exports','module','./transitions','./util'],function
               cssVal: prevCssVal
             };
           }.bind(this));
-          this.trigger(type + "-" + val, val);
+          this._trigger(type, val);
         }.bind(this));
       };
-      return States;
+      return State;
     }();
 });
 if (typeof exports === 'object' && typeof define !== 'function') {
@@ -776,8 +787,8 @@ define('select',['require','exports','module','./util'],function (require, expor
       }.bind(this));
     }.bind(this);
 });
-define('domos',['require','exports','module','./states','./tooltip','./templates','./transitions','./select','./util'],function(require, exports) {
-  require('./states')
+define('domos',['require','exports','module','./state','./tooltip','./templates','./transitions','./select','./util'],function(require, exports) {
+  require('./state')
   require('./tooltip')
   require('./templates')
   require('./transitions')
