@@ -1,10 +1,10 @@
-.PHONY: package js test-html test-style clean gh-pages watch
+.PHONY: package js html style clean gh-pages watch
 
 PATH += :${PWD}/node_modules/.bin
 
 O = build
 
-package: js test-html
+package: js html style
 
 js:
 	six -co ${O} lib/*.six
@@ -14,22 +14,22 @@ js:
 	        && cat prelude.js part.domos.src.js > domos.src.js \
 	        && cat prelude.js part.domos.min.js > domos.min.js
 
-test-html: ${O}/test/index.html
+html: ${O}/index.html
 
-test-style: ${O}/test/index.css
+style: ${O}/index.css
 
-${O}/test/%.html: test/%.jade
-	jade -O ${O}/test $<
+${O}/%.html: test/%.jade
+	jade -O ${O} $<
 
-${O}/test/%.css: test/%.scss
-	scss --compass --update test:${O}/test
+${O}/%.css: test/%.scss
+	scss --compass --update test:${O}
 
 clean:
 	rm -rf build
 
 gh-pages: package
 	git co gh-pages
-	cp build/domos.src.js build/domos.min.js build/test/*.{html,css} .
+	cp build/domos.src.js build/domos.min.js build/*.{html,css} .
 	git commit -a
 	git co master
 

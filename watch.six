@@ -52,7 +52,7 @@ fs.watch('test', (event, file) =>  {
     return
 
   if (JADE_FILE.exec(file))
-    recompile('test-html')
+    recompile('html')
   else if (SCSS_FILE.exec(file))
-    recompile('test-style')
+    recompile('style')
 })
