@@ -1,9 +1,9 @@
 # domos
 
-Domos is a library that provides an alternative set of UI concepts to Backbone and a number of extra features designed for easing use of CSS3 and HTML5.
+domos is a library that provides an alternative set of UI concepts to Backbone along with some API designed to ease some of CSS3 and HTML5's rough edges.
 
 ### domos.state
-The Domos state mechanism is an alternative to the [Backbone Router](http://backbonejs.org/#Router) mechanism for web applications that would benefit from maintaining multiple states.  Rather than routing on the URL path the domos state system allows routing multiple states based on a JavaScript object.
+The domos state mechanism is an alternative to the [Backbone Router](http://backbonejs.org/#Router) mechanism for web applications that would benefit from maintaining multiple states.  Rather than routing on the URL path the domos state system allows routing multiple states based on a JavaScript object.
 
 It provides:
  * A UI system that uses [data attributes](http://caniuse.com/#feat=dataset) to customise element styles based on the value of certain states (similar to the styling system seen in later versions of flash).
@@ -27,7 +27,7 @@ Rather than providing its own history API shim as [Backbone Router](http://backb
  * Tooltips with pointers. These make a great customisable alternative to default HTML5 form validation tooltips provided by current browsers. 
 
 ### domos.select
- * Customisable select box override
+ * Select box override
  * Fully customisable with CSS.
  * No special API needed to create or query data, replaces an existing select box which is hidden in the page. As the user interacts with the replacement the hidden select box is updated.
 
@@ -39,7 +39,7 @@ It can be obtained from
  * full source - http://nuisanceofcats.github.com/domos/domos.src.js
  * minified    - http://nuisanceofcats.github.com/domos/domos.min.js
 
-Domos can optionally be used as a require module and when require is not available the API is exported to the global object "window.domos".
+domos can optionally be used as a require module and when require is not available the API is exported to the global object "window.domos".
 
 ## API
 [domos API](/doc/api.md)
@@ -89,7 +89,7 @@ http://nuisanceofcats.github.com/domos
 
 ## Known issues
  * A bug with Firefox 17+ currently can cause flicker when fading from 0 to 1 in certain circumstances.
- * Domos probably does not work with Internet Explorer 8 or below and may not work with Internet Explorer 9 either. This may be fixed in the future.
+ * domos probably does not work with Internet Explorer 8 or below and may not work with Internet Explorer 9 either. This may be fixed in the future.
 
 ## Test Platforms
  * Firefox 17+
@@ -99,4 +99,4 @@ http://nuisanceofcats.github.com/domos
  * [Dolphin Browser Beta](https://play.google.com/store/apps/details?id=com.dolphin.browser.lab.en)
 
 # Websites using domos
- * [tlk.chilon.net](http://tlk.chilon.net) - Real-time article aggregation site that rates articles by readership time. Domos was spun-off from this website as an independently useful set of tools for creating modern web applications.
+ * [tlk.chilon.net](http://tlk.chilon.net) - Real-time article aggregation site that rates articles by view time.
