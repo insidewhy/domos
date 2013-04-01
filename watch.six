@@ -2,14 +2,15 @@ module fs    = 'fs'
 module cp    = 'child_process'
 module growl = 'growl'
 
-var SOURCE_FILE      = /\.(?:six|jade)$/,
+var SOURCE_FILE      = /\.six$/,
+    JADE_FILE        = /\.jade$/,
+    SCSS_FILE        = /\.scss$/,
     FILE_CHANGE_INCL = /^[^.]/
+    fileChange       = (event, file) => event == 'change' &&
+                                        FILE_CHANGE_INCL.exec(file)
 
-var fileChange = (event, file) =>
-  event == 'change' && FILE_CHANGE_INCL.exec(file)
-
-var STUTTER_INTERVAL = 100
-var protectFromStutter = callback => {
+var STUTTER_INTERVAL   = 100,
+    protectFromStutter = callback => {
   var nFired = 0
 
   return arg => {
@@ -35,9 +36,9 @@ var recompile = protectFromStutter(arg => {
 
   make.on('exit', code => {
     if (code)
-      errorAlert('recompile failed')
+      errorAlert('make', arg, 'failed')
     else
-      console.log('recompile success')
+      console.log('make', arg, 'succeeded')
   })
 })
 
@@ -47,6 +48,11 @@ fs.watch('lib', (event, file) =>  {
 })
 
 fs.watch('test', (event, file) =>  {
-  if (fileChange(event, file) && SOURCE_FILE.exec(file))
+  if (! fileChange(event, file))
+    return
+
+  if (JADE_FILE.exec(file))
     recompile('test-html')
+  else if (SCSS_FILE.exec(file))
+    recompile('test-style')
 })

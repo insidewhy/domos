@@ -1,4 +1,4 @@
-.PHONY: package js test-html clean gh-pages watch
+.PHONY: package js test-html test-style clean gh-pages watch
 
 PATH += :${PWD}/node_modules/.bin
 
@@ -16,8 +16,13 @@ js:
 
 test-html: ${O}/test/index.html
 
+test-style: ${O}/test/index.css
+
 ${O}/test/%.html: test/%.jade
 	jade -O ${O}/test $<
+
+${O}/test/%.css: test/%.scss
+	scss --compass --update test:${O}/test
 
 clean:
 	rm -rf build

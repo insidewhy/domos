@@ -1,0 +1,54 @@
+@import "compass/reset";
+@import "compass/css3";
+
+$bgcolour: #e8d0a9;
+
+@import url(http://fonts.googleapis.com/css?family=Source+Sans+Pro);
+
+html {
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Source Sans Pro', sans-serif;
+  padding: 20px;
+  @include background(linear-gradient(top, lighten($bgcolour, 8%) 20%,
+                                           darken($bgcolour, 1%)  50%,
+                                           lighten($bgcolour, 8%) 80%));
+  min-height: 100%;
+
+  >h1 {
+    @include text-shadow(rgba(black, 0.5) 1px 1px 2px);
+  }
+}
+
+h1 {
+  font-size: 2.3em;
+}
+
+#block1 {
+  background-color: blue;
+  @include transition(opacity 0.8s linear, height 0.2s linear);
+}
+#block2 {
+  background-color: green;
+}
+#block3 {
+  background-color: red;
+  @include transition(height 0.8s linear);
+  // TODO: height: auto;
+}
+
+body >div {
+  margin: 10px;
+  float: left;
+  width: 100px;
+  height: 100px;
+  padding: 10px;
+  @include box-sizing(border-box);
+  h1 {
+    font-size: 50pt;
+    margin: 0;
+    padding: 0;
+  }
+}
