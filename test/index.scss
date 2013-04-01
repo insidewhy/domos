@@ -45,7 +45,6 @@ body >div {
   width: 100px;
   height: 100px;
   padding: 10px;
-  @include box-sizing(border-box);
   h1 {
     font-size: 50pt;
     margin: 0;

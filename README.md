@@ -89,6 +89,7 @@ http://nuisanceofcats.github.com/domos
 
 ## Known issues
  * A bug with Firefox 17+ currently can cause flicker when fading from 0 to 1 in certain circumstances.
+ * Currently firefox includes the margin in the computed css dimensions for border-box elements but not when setting it via the css property. This can cause termination events not to fire on such elements.
  * domos probably does not work with Internet Explorer 8 or below and may not work with Internet Explorer 9 either. This may be fixed in the future.
 
 ## Test Platforms

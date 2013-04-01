@@ -14,12 +14,23 @@ html
           setTimeout(function() {
             // fade the same block back in
             domos.transition(block1, 'opacity', 1, function(cancel) {
-              // then fade the middle block out
+              // then fade the middle block out which has no transition
+              // so the following callback will fire immediately
               domos.transition(block2, 'opacity', 0, function() {
                 // transition last block from auto to height 300
-                domos.transition(block3, 'height', 300, function() {
-                  // TODO: ...
+                domos.transition(block3, 'height', '300px', function(cncld) {
+                  if (! cncld)
+                    alert('cancel failed')
                 })
+
+                // but sneak another transaction in before it has finished
+                // in order to cancel it
+                setTimeout(function() {
+                  domos.transition(block3, 'height', '100px', function(cncld) {
+                    if (cncld)
+                      alert('should not be cancelled')
+                  })
+                }, 400)
               })
             })
           }, 10)
