@@ -3,7 +3,7 @@
 Domos is a library that provides an alternative set of UI concepts to Backbone and a number of extra features designed for easing use of CSS3 and HTML5.
 
 ### domos.state
-The Domos state mechanism is an alternative to the Backbone Router mechanism for web applications that would benefit from maintaining multiple states.  Rather than routing on the URL path the domos state system allows routing multiple states based on a JavaScript object.
+The Domos state mechanism is an alternative to the [Backbone Router](http://backbonejs.org/#Router) mechanism for web applications that would benefit from maintaining multiple states.  Rather than routing on the URL path the domos state system allows routing multiple states based on a JavaScript object.
 
 It provides:
  * A UI system that uses [data attributes](http://caniuse.com/#feat=dataset) to customise element styles based on the value of certain states (similar to the styling system seen in later versions of flash).
@@ -14,7 +14,7 @@ It provides:
     * After corresponding UI transitions are enacted.
     * When a state value changes the state object.
 
-Rather than providing its own history API shim as Backbone Router does this library allows this to be done by the user and provides appropriate events to facilitate the use of such a shim. This allows the user flexibility in choosing what type of state changes should add new history events (navigable with the browser forward/back buttons) or replace the current state (not adding a history item).
+Rather than providing its own history API shim as [Backbone Router](http://backbonejs.org/#Router) does this library allows this to be done by the user and provides appropriate events to facilitate the use of such a shim. This allows the user flexibility in choosing what type of state changes should add new history events (navigable with the browser forward/back buttons) or replace the current state (not adding a history item).
 
 ### domos.transitions
  * A JavaScript API for use with CSS3 transitions.
