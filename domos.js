@@ -1,5 +1,5 @@
 define(function(require, exports) {
-  require('./states')
+  require('./state')
   require('./tooltip')
   require('./templates')
   require('./transitions')
