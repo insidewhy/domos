@@ -16,8 +16,10 @@ clean:
 	rm -rf build
 
 gh-pages: client
+	cp test/index.html build
 	git co gh-pages
 	cp build/domos.src.js build/domos.min.js .
+	mv build/index.html .
 
 watch:
 	./node_modules/.bin/six watch.six
