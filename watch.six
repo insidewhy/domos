@@ -1,0 +1,47 @@
+module fs    = 'fs'
+module cp    = 'child_process'
+module growl = 'growl'
+
+var SOURCE_FILE      = /\.six$/,
+    FILE_CHANGE_INCL = /^[^.]/
+
+var fileChange = (event, file) =>
+  event == 'change' && FILE_CHANGE_INCL.exec(file)
+
+var STUTTER_INTERVAL = 100
+var protectFromStutter = callback => {
+  var nFired = 0
+
+  return () => {
+    ++nFired
+    var _wantedNFired = nFired
+    setTimeout(() => {
+      if (_wantedNFired === nFired)
+        callback()
+    }, STUTTER_INTERVAL)
+  }
+}
+
+var errorLog = data => { process.stderr.write(data.toString()) }
+
+var errorAlert = msg => {
+  growl(msg, { name: 'talking.js', title: 'Failed' })
+}
+
+var recompile = protectFromStutter(() => {
+  console.log('recompiling library code')
+  var make = cp.spawn('make', ['client'])
+  make.stderr.on('data', errorLog)
+
+  make.on('exit', code => {
+    if (code)
+      errorAlert('recompile failed')
+    else
+      console.log('recompile success')
+  })
+})
+
+fs.watch('lib', (event, file) =>  {
+  if (fileChange(event, file) && SOURCE_FILE.exec(file))
+    recompile()
+})

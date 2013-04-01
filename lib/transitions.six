@@ -10,7 +10,8 @@ var VERY_SMALL = 0.00001
 // other browsers with the delay :(
 // https://bugzil.la/849399
 var FFX_SWITCH_BUG =
-  /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent)
+  /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent),
+    FIREFOX_NEEDS_SLEEP_FOR = 20 // 10 is a bit too small
 
 /// Transition selector containing one or many HTML elements.
 export function transition(nodes, name, value, callback) {
@@ -137,7 +138,7 @@ function transitionElement(node, changeTypes, changes, callback) {
   }
 
   if (FFX_SWITCH_BUG)
-    setTimeout(transitionHelper, 10)
+    setTimeout(transitionHelper, FIREFOX_NEEDS_SLEEP_FOR)
   else
     transitionHelper()
 }

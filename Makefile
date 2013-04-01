@@ -18,3 +18,6 @@ clean:
 gh-pages: client
 	git co gh-pages
 	cp build/domos.src.js build/domos.min.js .
+
+watch:
+	./node_modules/.bin/six watch.six
