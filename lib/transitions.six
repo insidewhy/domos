@@ -1,4 +1,4 @@
-import $each from './util'
+import {$each, compCss, css} from './util'
 
 var SWITCH_ATTRS = ['opacity', 'width', 'height']
 
@@ -59,21 +59,6 @@ export function transition(nodes, name, value, callback) {
     $each(nodes, node => {
       transitionElement(node, changeTypes, changes, onSingleTransition)
     })
-  }
-}
-
-// Return the computed style
-export var compCss = (node, type) =>
-  getComputedStyle(node[0], null)[type]
-
-// Return the style if it is overriden, else the computed style.
-export var css = (node, type, newVal) => {
-  if (newVal !== undefined) {
-    node.css(type, newVal)
-  }
-  else {
-    var ret = node[0].style[type]
-    return ret === '' ?  compCss(node, type) : ret
   }
 }
 

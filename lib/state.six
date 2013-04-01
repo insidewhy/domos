@@ -1,5 +1,5 @@
-import {transition, css} from './transitions'
-import $each from './util'
+import transition from './transitions'
+import {$each, css} from './util'
 
 export class State {
   constructor(opts) {
