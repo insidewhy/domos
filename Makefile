@@ -29,7 +29,9 @@ clean:
 
 gh-pages: package
 	git co gh-pages
-	cp build/domos.src.js build/domos.min.js build/test/index.html .
+	cp build/domos.src.js build/domos.min.js build/test/*.{html,css} .
+	git commit -a
+	git co master
 
 watch:
 	./node_modules/.bin/six watch.six
