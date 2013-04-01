@@ -1,28 +1,43 @@
 # domos
 
-Domos is a library for working with HTML5 and CSS3. It provides:
+Domos is a library that provides an alternative set of UI concepts to Backbone and a number of extra features designed for easing use of CSS3 and HTML5.
 
+### domos.state
+
+The Domos state mechanism is an alternative to the Backbone Router mechanism for more web-applications that have to maintain multiple states.
+ * Rather than routing on the URL path the domos state system allows routing multiple states based on a JavaScript object.
+ * A UI system that uses [data attributes](http://caniuse.com/#feat=dataset) to customise element based on the value of certain states (similar to the styling system seen in later versions of flash).
+ * A rich set of events is provided that allow the UI to respond to various state modifications. Callbacks are provided:
+    * When a single state value changes.
+    * When a single state value is redone (set to the same value).
+    * Before corresponding UI transitions are enacted.
+    * After corresponding UI transitions are enacted.
+    * When a state value changes the state object.
+ * It can be easily linked with the HTML5 history API (or a shim) to allow states to insert history events that can be navigated using the forward/back buttons and to eliminate (yet still support) the need for page-reloads.
+
+### domos.template
+ * UI templates based on [data attributes](http://caniuse.com/#feat=dataset).
+
+### domos.transitions
  * A JavaScript API for use with CSS3 transitions.
- * Event based UI states based on data tags that use the transition framework.
- * Event based templates based on data tags.
- * Convert select boxes to allow the pointer to be styled.
- * Tooltips with pointers.
+ * Callbacks contain the "cancelled" argument to allow detection of whether the transition completed fully or whether another attribute change cancelled them.
+ * Allows transitions to be configured and turned off from CSS. Callbacks run immediately when no transition is necessary.
+ * A state change can be performed on many elements and in this case a single callback is fired. The cancelled argument is false only if all of the transitions finished successfully.
+ * Elements are automatically hidden and re-displayed as attributes cause them to shrink to 0 in (max) width/height or fade to 0 opacity. This removes ugly borders on elements with 0 width/height and avoids faded elements interfering with the flow of the page.
+
+### domos.ui
+ * Tooltips with pointers. These make a great customisable alternative to default HTML5 form validation tooltips provided by current browsers. 
+ * Customisable select box override
+    * Fully customisable with CSS.
+    * No special API needed to query data: hides and updates underlying select box.
+
+## Obtaining
 
 It can be obtained from
  * full source - http://nuisanceofcats.github.com/domos/domos.src.js
  * minified    - http://nuisanceofcats.github.com/domos/domos.min.js
 
 It can be used from as a require module, when require is not available it exports to the global object "window.domos".
-
-### Advantages to using Jquery transitions
-* Callbacks contain the "cancelled" argument to allow detection of whether the transition completed fully or whether another attribute change cancelled them.
-* Allows transitions to be configured and turned off from CSS. Callbacks run immediately when no transition is necessary.
-* A state change can be performed on many elements and in this case a single callback is fired. The cancelled argument is false only if all of the transitions finished successfully.
-* Elements are automatically hidden and re-displayed as attributes cause them to shrink to 0 in (max) width/height or fade to 0 opacity. This removes ugly borders on elements with 0 width/height and avoids faded elements interfering with the flow of the page.
-* Transitions should be smoother as they are performed by browser engine rather than JavaScript.
-
-### Disadvantages to using Jquery transitions
-* Elements will not transition in browsers that do not support CSS3 transitions (callbacks will fire immediately).
 
 ## API
 
@@ -114,12 +129,21 @@ By default an upside down triangle is drawn as a button but a callback can be pr
   domos.transition(...)
 ```
 
-## Requirements
-* [Jquery](http://jquery.com) or [Zepto](http://zeptojs.com).
-* [Backbone](http://backbonejs.org)
+## Dependencies
+ * [Jquery](http://jquery.com) or [Zepto](http://zeptojs.com).
+ * [Backbone](http://backbonejs.org)
 
 ## Test Page
 http://nuisanceofcats.github.com/domos
 
-A bug with Firefox 17+ currently can cause flicker when fading from
-0 to 1 in certain circumstances.
+## Known issues
+ * A bug with Firefox 17+ currently can cause flicker when fading from 0 to 1 in certain circumstances.
+ * Domos probably does not work with Internet Explorer 8 or below and may not work with Internet Explorer 9 either. This may be fixed in the future.
+
+## Test Platforms
+ * Firefox 17+
+ * Chromium 24+
+ * Internet Explorer 10
+
+# Websites using domos
+ * [tlk.chilon.net](http://tlk.chilon.net) - Real-time article aggregation site that rates articles by readership time. Domos was spun-off from this website as an independently useful set of tools for creating modern web applications.
