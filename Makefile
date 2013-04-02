@@ -31,6 +31,7 @@ gh-pages: package
 	git co gh-pages
 	cp build/domos.src.js build/domos.min.js build/*.{html,css} .
 	git commit -a
+	git push
 	git co master
 
 watch:
