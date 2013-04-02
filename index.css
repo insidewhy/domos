@@ -86,10 +86,7 @@ body > div {
   float: left;
   width: 100px;
   height: 100px;
-  padding: 10px;
-  -webkit-box-sizing: border-box;
-  -moz-box-sizing: border-box;
-  box-sizing: border-box; }
+  padding: 10px; }
   body > div h1 {
     font-size: 50pt;
     margin: 0;

@@ -92,6 +92,13 @@ define('transitions',['require','exports','module','./util'],function (require, 
         }.bind(this));
       }
     };
+  var removeTransitionState = function (nod, type, removeEmpty) {
+      if (nod.__domosTransition[type]) {
+        delete nod.__domosTransition[type];
+        if (--nod.__domosTransition.nKeys === 0 && removeEmpty)
+          delete nod.__domosTransition;
+      }
+    }.bind(this);
   function transitionElement(node, changeTypes, changes, callback) {
     node.css(changes);
     var pendingChanges = function () {
@@ -99,32 +106,48 @@ define('transitions',['require','exports','module','./util'],function (require, 
           return Math.abs(parseFloat(compCss(node, type)) - parseFloat(changes[type])) > VERY_SMALL;
         }.bind(this));
       }.bind(this);
+    var finishedTransition = false;
     var transitionHelper = function () {
         if (pendingChanges()) {
           var nod = node[0];
           var handleTransition = function (e) {
+              if (finishedTransition)
+                return;
               if (!e) {
                 if (callback)
                   callback(true);
+                finishedTransition = true;
                 return;
               }
               if (SWITCH_ATTRS.indexOf(e.propertyName) !== -1 && parseFloat(compCss(node, e.propertyName)) < VERY_SMALL) {
                 node.css("display", "none");
               }
               if (!pendingChanges()) {
-                delete nod.__domosTransition;
+                changeTypes.forEach(function (type) {
+                  removeTransitionState(nod, type, true);
+                }.bind(this));
                 nod.removeEventListener("transitionend", handleTransition);
                 nod.removeEventListener("webkitTransitionEnd", handleTransition);
                 if (callback)
                   callback();
+                finishedTransition = true;
               }
             }.bind(this);
           if (nod.__domosTransition) {
-            nod.removeEventListener("transitionend", nod.__domosTransition);
-            nod.removeEventListener("webkitTransitionEnd", nod.__domosTransition);
-            nod.__domosTransition(null);
+            changeTypes.forEach(function (type) {
+              var listener = nod.__domosTransition[type];
+              listener(null);
+              nod.removeEventListener("transitionend", listener);
+              nod.removeEventListener("webkitTransitionEnd", listener);
+              removeTransitionState(nod, type);
+            }.bind(this));
+          } else {
+            nod.__domosTransition = {};
           }
-          nod.__domosTransition = handleTransition;
+          changeTypes.forEach(function (type) {
+            nod.__domosTransition[type] = handleTransition;
+          }.bind(this));
+          nod.__domosTransition.nKeys = changeTypes.length;
           nod.addEventListener("transitionend", handleTransition);
           nod.addEventListener("webkitTransitionEnd", handleTransition);
         } else {

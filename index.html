@@ -1,4 +1,4 @@
-<html><head><script src="http://code.jquery.com/jquery-1.9.1.min.js"></script><script src="domos.src.js"></script><script type="text/javascript">$(document).ready(function() {
+<html><head><script src="http://code.jquery.com/jquery-1.9.1.min.js"></script><script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.4/underscore-min.js"></script><script src="domos.src.js"></script><script type="text/javascript">$(document).ready(function() {
   var block1 = $('#block1'),
       block2 = $('#block2'),
       block3 = $('#block3')
@@ -9,12 +9,23 @@
     setTimeout(function() {
       // fade the same block back in
       domos.transition(block1, 'opacity', 1, function(cancel) {
-        // then fade the middle block out
+        // then fade the middle block out which has no transition
+        // so the following callback will fire immediately
         domos.transition(block2, 'opacity', 0, function() {
           // transition last block from auto to height 300
-          domos.transition(block3, 'height', 300, function() {
-            // TODO: ...
+          domos.transition(block3, 'height', '300px', function(cncld) {
+            if (! cncld)
+              alert('cancel failed')
           })
+          
+          // but sneak another transaction in before it has finished
+          // in order to cancel it
+          setTimeout(function() {
+            domos.transition(block3, 'height', '100px', function(cncld) {
+              if (cncld)
+                alert('should not be cancelled')
+            })
+          }, 400)
         })
       })
     }, 10)
