@@ -62,6 +62,14 @@ export function transition(nodes, name, value, callback) {
   }
 }
 
+var removeTransitionState = (nod, type, removeEmpty) => {
+  if (nod.__domosTransition[type]) {
+    delete nod.__domosTransition[type]
+    if (--nod.__domosTransition.nKeys === 0 && removeEmpty)
+      delete nod.__domosTransition
+  }
+}
+
 /// Transition selector containing single HTML element.
 function transitionElement(node, changeTypes, changes, callback) {
   node.css(changes)
@@ -71,15 +79,26 @@ function transitionElement(node, changeTypes, changes, callback) {
       Math.abs(parseFloat(compCss(node, type))
                - parseFloat(changes[type])) > VERY_SMALL)
 
+  var finishedTransition = false
+
+  // this helper is necessary due to https://bugzil.la/849399
   var transitionHelper = () => {
     if (pendingChanges()) {
+      // a transition occurred
       var nod = node[0]
 
+      // "end of transition" html5 event handler
       var handleTransition = e => {
+        if (finishedTransition)
+          return
+
         if (! e) {
-          // boolean indicates transition was cancelled by another.
+          // when the event is not present this means the function
+          // was cancelled by the user
           if (callback)
             callback(true)
+
+          finishedTransition = true
           return
         }
 
@@ -90,21 +109,38 @@ function transitionElement(node, changeTypes, changes, callback) {
         }
 
         if (! pendingChanges()) {
-          delete nod.__domosTransition
+          // all is done
+          changeTypes.forEach(type => {
+            removeTransitionState(nod, type, true)
+          })
           nod.removeEventListener('transitionend', handleTransition)
           nod.removeEventListener('webkitTransitionEnd', handleTransition)
           if (callback)
             callback()
+          finishedTransition = true
         }
       }
 
       if (nod.__domosTransition) {
-        nod.removeEventListener('transitionend', nod.__domosTransition)
-        nod.removeEventListener('webkitTransitionEnd', nod.__domosTransition)
-        // show it has cancelled
-        nod.__domosTransition(null)
+        changeTypes.forEach(type => {
+          // show it has cancelled
+          var listener = nod.__domosTransition[type]
+          listener(null)
+          // calling twice on same listener has no effect
+          nod.removeEventListener('transitionend', listener)
+          nod.removeEventListener('webkitTransitionEnd', listener)
+
+          removeTransitionState(nod, type)
+        })
       }
-      nod.__domosTransition = handleTransition
+      else {
+        nod.__domosTransition = {}
+      }
+
+      changeTypes.forEach(type => {
+        nod.__domosTransition[type] = handleTransition
+      })
+      nod.__domosTransition.nKeys = changeTypes.length
 
       nod.addEventListener('transitionend', handleTransition)
       nod.addEventListener('webkitTransitionEnd', handleTransition)
