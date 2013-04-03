@@ -6,12 +6,16 @@ var SWITCH_ATTRS = ['opacity', 'width', 'height']
 // so allow this much deviation when testing for completion
 var VERY_SMALL = 0.00001
 
-// Nothing we can do but work around this firefox bug without afflicting
-// other browsers with the delay :(
-// https://bugzil.la/849399
-var FFX_SWITCH_BUG =
-  /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent),
-    FIREFOX_STATE_LAG = 20 // 10 is a bit too small
+// Currently only affects firefox: https://bugzil.la/849399
+// Some browsers report new opacity incorrectly immediately after a switch
+// causes a transition. A delay is used after resetting styles as a
+// work-around.
+var STATE_INCORRECT_AFTER_SET =
+  /Firefox\/1[0-9]?/.test(navigator.userAgent),
+    STATE_INCORRECT_AFTER_SET_LAG = 20 // 10 is a bit too small
+
+var TRANSITIONS_FROM_AUTO_AS_0px =
+  /Chrome\/2[0-6]?/.test(navigator.userAgent)
 
 /// Transition selector containing one or many HTML elements.
 export function transition(nodes, name, value, callback) {
@@ -69,12 +73,12 @@ var removeTransitionState = (nod, type, removeEmpty) => {
 
 /// Transition selector containing single HTML element.
 function transitionElement(node, changeTypes, changes, callback) {
-  // to fix transition from auto then set types that have auto
-  // to the computed size
-  changeTypes.forEach(type => {
-    if (node[0].style[type] === '')
-      css(node, type, compCss(node, type))
-  })
+  var blankCss = () => {
+    changeTypes.forEach(type => {
+      if (node[0].style[type] === '')
+        css(node, type, compCss(node, type))
+    })
+  }
 
   // firefox needs a delay after this step else the transition will not fire
   var makeCssChanges = () => {
@@ -163,8 +167,28 @@ function transitionElement(node, changeTypes, changes, callback) {
     }
   }
 
-  if (FFX_SWITCH_BUG)
-    setTimeout(makeCssChanges, FIREFOX_STATE_LAG)
+  // to fix transition from auto then set types that have auto
+  // to the computed size
+  if (TRANSITIONS_FROM_AUTO_AS_0px &&
+      changeTypes.some(type => node[0].style[type] === ''))
+  {
+    var backupTrans = compCss(node, 'transition')
+    css(node, 'transition', 'none')
+    blankCss()
+    // there seems to be a lag before the transition turning off can take
+    // place so delaying by 0s is a good way of dealing with this
+    setTimeout(() => {
+      css(node, 'transition', backupTrans)
+      makeCssChanges()
+    }, 0)
+    return
+  }
+  else {
+    blankCss()
+  }
+
+  if (STATE_INCORRECT_AFTER_SET)
+    setTimeout(makeCssChanges, STATE_INCORRECT_AFTER_SET_LAG)
   else
     makeCssChanges()
 }
