@@ -6,28 +6,26 @@
   // transition height and fade out at the same time
   domos.transition(block1, { height: 200, opacity: 0 }, function() {
     // then after a short while...
-    setTimeout(function() {
-      // fade the same block back in
-      domos.transition(block1, 'opacity', 1, function(cancel) {
-        // then fade the middle block out which has no transition
-        // so the following callback will fire immediately
-        domos.transition(block2, 'opacity', 0, function() {
-          // transition last block from auto to height 300
-          domos.transition(block3, 'height', '300px', function(cncld) {
-            if (! cncld)
-              alert('cancel failed')
-          })
-          
-          // but sneak another transaction in before it has finished
-          // in order to cancel it
-          setTimeout(function() {
-            domos.transition(block3, 'height', '100px', function(cncld) {
-              if (cncld)
-                alert('should not be cancelled')
-            })
-          }, 400)
+    // fade the same block back in
+    domos.transition(block1, 'opacity', 1, function(cancel) {
+      // then fade the middle block out which has no transition
+      // so the following callback will fire immediately
+      domos.transition(block2, 'opacity', 0, function() {
+        // transition last block from auto to height 300
+        domos.transition(block3, 'height', '300px', function(cncld) {
+          if (! cncld)
+            alert('cancel failed')
         })
+        
+        // but sneak another transaction in before it has finished
+        // in order to cancel it
+        setTimeout(function() {
+          domos.transition(block3, 'height', '100px', function(cncld) {
+            if (cncld)
+              alert('should not be cancelled')
+          })
+        }, 400)
       })
-    }, 10)
+    })
   })
 })</script><link rel="stylesheet" type="text/css" href="index.css"/></head><body><h1>Transition effects</h1><div id="block3"><h1>A</h1></div><div id="block2"></div><div id="block1"></div></body></html>

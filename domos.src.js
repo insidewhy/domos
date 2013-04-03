@@ -55,7 +55,8 @@ define('transitions',['require','exports','module','./util'],function (require, 
       "height"
     ];
   var VERY_SMALL = 0.00001;
-  var FFX_SWITCH_BUG = /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent), FIREFOX_STATE_LAG = 20;
+  var STATE_INCORRECT_AFTER_SET = /Firefox\/1[0-9]?/.test(navigator.userAgent), STATE_INCORRECT_AFTER_SET_LAG = 20;
+  var TRANSITIONS_FROM_AUTO_AS_0px = /Chrome\/2[0-6]?/.test(navigator.userAgent);
   var transition = exports.transition = function (nodes, name, value, callback) {
       var changes;
       if (typeof name === "string") {
@@ -97,10 +98,12 @@ define('transitions',['require','exports','module','./util'],function (require, 
       }
     }.bind(this);
   function transitionElement(node, changeTypes, changes, callback) {
-    changeTypes.forEach(function (type) {
-      if (node[0].style[type] === "")
-        css(node, type, compCss(node, type));
-    }.bind(this));
+    var blankCss = function () {
+        changeTypes.forEach(function (type) {
+          if (node[0].style[type] === "")
+            css(node, type, compCss(node, type));
+        }.bind(this));
+      }.bind(this);
     var makeCssChanges = function () {
         node.css(changes);
         var pendingChanges = function () {
@@ -161,8 +164,22 @@ define('transitions',['require','exports','module','./util'],function (require, 
             callback();
         }
       }.bind(this);
-    if (FFX_SWITCH_BUG)
-      setTimeout(makeCssChanges, FIREFOX_STATE_LAG);
+    if (TRANSITIONS_FROM_AUTO_AS_0px && changeTypes.some(function (type) {
+        return node[0].style[type] === "";
+      }.bind(this))) {
+      var backupTrans = compCss(node, "transition");
+      css(node, "transition", "none");
+      blankCss();
+      setTimeout(function () {
+        css(node, "transition", backupTrans);
+        makeCssChanges();
+      }.bind(this), 0);
+      return;
+    } else {
+      blankCss();
+    }
+    if (STATE_INCORRECT_AFTER_SET)
+      setTimeout(makeCssChanges, STATE_INCORRECT_AFTER_SET_LAG);
     else
       makeCssChanges();
   }
