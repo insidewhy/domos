@@ -8,7 +8,7 @@ domos is a library that provides an alternative set of UI concepts to Backbone a
  * Allows transitions to be configured and turned off from CSS. Callbacks run immediately when no transition is necessary.
  * A state change can be performed on many elements and in this case a single callback is fired. The cancelled argument is false only if all of the transitions finished successfully.
  * Elements are automatically hidden and re-displayed as attributes cause them to shrink to 0 in (max) width/height or fade to 0 opacity. This removes ugly borders on elements with 0 width/height and avoids faded elements interfering with the flow of the page.
- * Transitions to/from a height/width of "auto" (currently Webkit based browsers treat auto as "0px" and Firefox avoids transitions to/from auto).
+ * This library shows transitions from styles with a value of "auto" and to values of "auto" (without this library Webkit based browsers treat auto as "0px" and Firefox avoids transitions to/from auto).
 
 ### domos.state
 The domos state mechanism is an alternative to the [Backbone Router](http://backbonejs.org/#Router) mechanism for web applications that would benefit from maintaining multiple states.  Rather than routing on the URL path the domos state system allows routing multiple states based on a JavaScript object.
@@ -92,7 +92,7 @@ http://nuisanceofcats.github.com/domos
  * https://bugzil.la/849399
  * https://bugs.webkit.org/show_bug.cgi?id=113871
 
-## Known limitatio;ns
+## Known limitations
  * Currently firefox includes the margin in the computed css dimensions for border-box elements but not when setting it via the css property. This can cause termination events not to fire on such elements.
  * domos probably does not work with Internet Explorer 8 or below and may not work with Internet Explorer 9 either. This may be fixed in the future.
 
