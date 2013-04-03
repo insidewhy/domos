@@ -1,4 +1,5 @@
-import $each from './util'
+import {$each, css, compCss} from './util'
+import transition from './transitions'
 
 var SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -64,11 +65,11 @@ class Select {
     var buttonPad = options.buttonPadding,
         height = this.$.height() - (buttonPad * 2)
 
-    var mainHeight = this.$.css('height')
+    var mainHeight = compCss(this.$, 'height')
 
     // fix height at height with just selected element and set padding
     // right to 0 to allow button to be aligned
-    this.$.css({ height: this.$.height() })
+    css(this.$, 'height', compCss(this.$, 'height'))
 
     button.css({ height, width: height, padding: options.buttonPadding })
 
@@ -134,8 +135,9 @@ class Select {
         return
 
       isOpen = true
-      // TODO: activate keyboard interaction etc.
-      this.$.css('height', 'auto').addClass('open')
+      // TODO: transition
+      css(this.$, 'height', 'auto')
+      this.$.addClass('open')
 
       highlightIdx(this._selectedIndex, true)
 
@@ -169,11 +171,10 @@ class Select {
             })
 
             this.$.removeClass('open')
-            this.$.css('height', mainHeight)
+            transition(this.$, 'height', mainHeight)
             setTimeout(() => { isOpen = false }, 200)
           })
 
-          // TODO: disable keyboard interaction etc.
           $('body').one('click', defoc)
           mainText.one('blur', defoc)
         },

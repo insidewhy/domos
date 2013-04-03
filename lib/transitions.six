@@ -14,7 +14,7 @@ var STATE_INCORRECT_AFTER_SET =
   /Firefox\/(?:1[7-9]|20)?/.test(navigator.userAgent),
     STATE_INCORRECT_AFTER_SET_LAG = 20 // 10 is a bit too small
 
-var TRANSITIONS_FROM_AUTO_AS_0px =
+var TRANSITIONS_AUTO_AS_0px =
   /Chrome\/2[0-6]?/.test(navigator.userAgent)
 
 /// Transition selector containing one or many HTML elements.
@@ -72,10 +72,18 @@ var removeTransitionState = (nod, type, removeEmpty) => {
 }
 
 /// Transition selector containing single HTML element.
-function transitionElement(node, changeTypes, changes, callback) {
-  var blankCss = () => {
+function transitionElement(node, changeTypes, _changes, callback) {
+  var changes = Object.create(_changes)
+  var autoTypes = []
+
+  // handle transitions to and from auto
+  var handleAutos = () => {
     changeTypes.forEach(type => {
-      if (node[0].style[type] === '')
+      if (_changes[type] === 'auto')
+        autoTypes.push(type)
+
+      var val = node[0].style[type]
+      if (val === '' || val === 'auto')
         css(node, type, compCss(node, type))
     })
   }
@@ -124,6 +132,7 @@ function transitionElement(node, changeTypes, changes, callback) {
           })
           nod.removeEventListener('transitionend', handleTransition)
           nod.removeEventListener('webkitTransitionEnd', handleTransition)
+          autoTypes.forEach(type => { css(node, type, 'auto') })
           if (callback)
             callback()
           finishedTransition = true
@@ -134,12 +143,14 @@ function transitionElement(node, changeTypes, changes, callback) {
         changeTypes.forEach(type => {
           // show it has cancelled
           var listener = nod.__domosTransition[type]
-          listener(null)
-          // calling twice on same listener has no effect
-          nod.removeEventListener('transitionend', listener)
-          nod.removeEventListener('webkitTransitionEnd', listener)
+          if (listener) {
+            listener(null)
+            // calling twice on same listener has no effect
+            nod.removeEventListener('transitionend', listener)
+            nod.removeEventListener('webkitTransitionEnd', listener)
 
-          removeTransitionState(nod, type)
+            removeTransitionState(nod, type)
+          }
         })
       }
       else {
@@ -167,14 +178,17 @@ function transitionElement(node, changeTypes, changes, callback) {
     }
   }
 
-  // to fix transition from auto then set types that have auto
-  // to the computed size
-  if (TRANSITIONS_FROM_AUTO_AS_0px &&
-      changeTypes.some(type => node[0].style[type] === ''))
-  {
+  var isAuto = type => {
+    var nodeVal = node[0].style[type]
+    return nodeVal === '' || nodeVal === 'auto'
+  }
+
+  if (TRANSITIONS_AUTO_AS_0px && changeTypes.some(isAuto)) {
+    // to fix transition from auto then set types that have auto
+    // to the computed size
     var backupTrans = compCss(node, 'transition')
     css(node, 'transition', 'none')
-    blankCss()
+    handleAutos()
     // there seems to be a lag before the transition turning off can take
     // place so delaying by 0s is a good way of dealing with this
     setTimeout(() => {
@@ -184,7 +198,13 @@ function transitionElement(node, changeTypes, changes, callback) {
     return
   }
   else {
-    blankCss()
+    handleAutos()
+    autoTypes.forEach(type => {
+      var bak = compCss(node, type)
+      css(node, type, 'auto')
+      changes[type] = compCss(node, type)
+      css(node, type, bak)
+    })
   }
 
   if (STATE_INCORRECT_AFTER_SET)

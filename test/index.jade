@@ -26,9 +26,14 @@ html
               // but sneak another transaction in before it has finished
               // in order to cancel it
               setTimeout(function() {
-                domos.transition(block3, 'height', '100px', function(cncld) {
+                domos.transition(block3, 'height', '150px', function(cncld) {
                   if (cncld)
                     alert('should not be cancelled')
+                  // then transition it to size auto
+                  domos.transition(block3, 'height', 'auto', function(cncld) {
+                    // fade back in immediately
+                    domos.transition(block2, 'opacity', 1)
+                  })
                 })
               }, 400)
             })
