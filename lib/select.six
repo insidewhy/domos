@@ -135,8 +135,7 @@ class Select {
         return
 
       isOpen = true
-      // TODO: transition
-      css(this.$, 'height', 'auto')
+      transition(this.$, 'height', 'auto')
       this.$.addClass('open')
 
       highlightIdx(this._selectedIndex, true)
