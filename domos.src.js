@@ -55,8 +55,8 @@ define('transitions',['require','exports','module','./util'],function (require, 
       "height"
     ];
   var VERY_SMALL = 0.00001;
-  var STATE_INCORRECT_AFTER_SET = /Firefox\/1[0-9]?/.test(navigator.userAgent), STATE_INCORRECT_AFTER_SET_LAG = 20;
-  var TRANSITIONS_FROM_AUTO_AS_0px = /Chrome\/2[0-6]?/.test(navigator.userAgent);
+  var STATE_INCORRECT_AFTER_SET = /Firefox\/(?:1[7-9]|20)?/.test(navigator.userAgent), STATE_INCORRECT_AFTER_SET_LAG = 20;
+  var TRANSITIONS_AUTO_AS_0px = /Chrome\/2[0-6]?/.test(navigator.userAgent);
   var transition = exports.transition = function (nodes, name, value, callback) {
       var changes;
       if (typeof name === "string") {
@@ -97,10 +97,15 @@ define('transitions',['require','exports','module','./util'],function (require, 
           delete nod.__domosTransition;
       }
     }.bind(this);
-  function transitionElement(node, changeTypes, changes, callback) {
-    var blankCss = function () {
+  function transitionElement(node, changeTypes, _changes, callback) {
+    var changes = Object.create(_changes);
+    var autoTypes = [];
+    var handleAutos = function () {
         changeTypes.forEach(function (type) {
-          if (node[0].style[type] === "")
+          if (_changes[type] === "auto")
+            autoTypes.push(type);
+          var val = node[0].style[type];
+          if (val === "" || val === "auto")
             css(node, type, compCss(node, type));
         }.bind(this));
       }.bind(this);
@@ -132,18 +137,23 @@ define('transitions',['require','exports','module','./util'],function (require, 
                 }.bind(this));
                 nod.removeEventListener("transitionend", handleTransition);
                 nod.removeEventListener("webkitTransitionEnd", handleTransition);
-                if (callback)
-                  callback();
                 finishedTransition = true;
+                withoutTransitions(function () {
+                  autoTypes.forEach(function (type) {
+                    css(node, type, "auto");
+                  }.bind(this));
+                }.bind(this), callback);
               }
             }.bind(this);
           if (nod.__domosTransition) {
             changeTypes.forEach(function (type) {
               var listener = nod.__domosTransition[type];
-              listener(null);
-              nod.removeEventListener("transitionend", listener);
-              nod.removeEventListener("webkitTransitionEnd", listener);
-              removeTransitionState(nod, type);
+              if (listener) {
+                listener(null);
+                nod.removeEventListener("transitionend", listener);
+                nod.removeEventListener("webkitTransitionEnd", listener);
+                removeTransitionState(nod, type);
+              }
             }.bind(this));
           } else {
             nod.__domosTransition = {};
@@ -164,24 +174,51 @@ define('transitions',['require','exports','module','./util'],function (require, 
             callback();
         }
       }.bind(this);
-    if (TRANSITIONS_FROM_AUTO_AS_0px && changeTypes.some(function (type) {
-        return node[0].style[type] === "";
-      }.bind(this))) {
-      var backupTrans = compCss(node, "transition");
-      css(node, "transition", "none");
-      blankCss();
-      setTimeout(function () {
-        css(node, "transition", backupTrans);
-        makeCssChanges();
-      }.bind(this), 0);
-      return;
+    var isAuto = function (type) {
+        var nodeVal = node[0].style[type];
+        return nodeVal === "" || nodeVal === "auto";
+      }.bind(this);
+    var withoutTransitions = function (without, after) {
+        if (TRANSITIONS_AUTO_AS_0px) {
+          var backupTrans = compCss(node, "transition");
+          css(node, "transition", "none");
+          if (without)
+            without();
+          setTimeout(function () {
+            css(node, "transition", backupTrans);
+            if (after)
+              after();
+          }.bind(this));
+        } else {
+          if (without)
+            without();
+          if (after)
+            after();
+        }
+      }.bind(this);
+    var makeCssChangesHelper = function () {
+        if (STATE_INCORRECT_AFTER_SET)
+          setTimeout(makeCssChanges, STATE_INCORRECT_AFTER_SET_LAG);
+        else
+          makeCssChanges();
+      }.bind(this);
+    if (TRANSITIONS_AUTO_AS_0px && changeTypes.some(isAuto)) {
+      withoutTransitions(handleAutos, makeCssChangesHelper);
     } else {
-      blankCss();
+      handleAutos();
+      if (autoTypes.length) {
+        withoutTransitions(function () {
+          autoTypes.forEach(function (type) {
+            var bak = compCss(node, type);
+            css(node, type, "auto");
+            changes[type] = compCss(node, type);
+            css(node, type, bak);
+          }.bind(this));
+        }.bind(this), makeCssChangesHelper);
+      } else {
+        makeCssChangesHelper();
+      }
     }
-    if (STATE_INCORRECT_AFTER_SET)
-      setTimeout(makeCssChanges, STATE_INCORRECT_AFTER_SET_LAG);
-    else
-      makeCssChanges();
   }
 });
 if (typeof exports === 'object' && typeof define !== 'function') {
@@ -678,8 +715,9 @@ if (typeof exports === 'object' && typeof define !== 'function') {
     factory(require, exports);
   };
 }
-define('select',['require','exports','module','./util'],function (require, exports) {
-  var $each = require("./util").$each;
+define('select',['require','exports','module','./util','./transitions'],function (require, exports) {
+  var __util = require("./util"), $each = __util.$each, css = __util.css, compCss = __util.compCss;
+  var transition = require("./transitions").transition;
   var SVG_NS = "http://www.w3.org/2000/svg";
   var N_HEAD_NODES = 2;
   var LINK_STYLE_OVERRIDES = {
@@ -726,8 +764,8 @@ define('select',['require','exports','module','./util'],function (require, expor
         this.$.append(button);
         node.before(this.$).hide();
         var buttonPad = options.buttonPadding, height = this.$.height() - buttonPad * 2;
-        var mainHeight = this.$.css("height");
-        this.$.css({ height: this.$.height() });
+        var mainHeight = compCss(this.$, "height");
+        css(this.$, "height", compCss(this.$, "height"));
         button.css({
           height: height,
           width: height,
@@ -779,7 +817,8 @@ define('select',['require','exports','module','./util'],function (require, expor
             if (isOpen)
               return;
             isOpen = true;
-            this.$.css("height", "auto").addClass("open");
+            css(this.$, "height", "auto");
+            this.$.addClass("open");
             highlightIdx(this._selectedIndex, true);
             var onKeydown = function (e) {
                 if (e.which === 40) {
@@ -803,7 +842,7 @@ define('select',['require','exports','module','./util'],function (require, expor
                     node.removeClass("active");
                   }.bind(this));
                   this.$.removeClass("open");
-                  this.$.css("height", mainHeight);
+                  transition(this.$, "height", mainHeight);
                   setTimeout(function () {
                     isOpen = false;
                   }.bind(this), 200);
