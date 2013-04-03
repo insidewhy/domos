@@ -58,11 +58,25 @@ body {
   background: -o-linear-gradient(top, #f1e2c9 20%, #e7cea5 50%, #f1e2c9 80%);
   background: linear-gradient(top, #f1e2c9 20%, #e7cea5 50%, #f1e2c9 80%);
   min-height: 100%; }
-  body > h1 {
-    text-shadow: rgba(0, 0, 0, 0.5) 1px 1px 2px; }
+
+article > h1 {
+  text-shadow: rgba(0, 0, 0, 0.5) 1px 1px 2px; }
+article > footer {
+  clear: left; }
 
 h1 {
   font-size: 2.3em; }
+
+#block1, #block2, #block3 {
+  margin: 10px 20px 10px 0;
+  float: left;
+  width: 100px;
+  height: 100px;
+  padding: 10px; }
+  #block1 h1, #block2 h1, #block3 h1 {
+    font-size: 50pt;
+    margin: 0;
+    padding: 0; }
 
 #block1 {
   background-color: blue;
@@ -82,13 +96,9 @@ h1 {
   transition: height 0.8s linear;
   height: auto; }
 
-body > div {
-  margin: 10px;
-  float: left;
-  width: 100px;
-  height: 100px;
-  padding: 10px; }
-  body > div h1 {
-    font-size: 50pt;
-    margin: 0;
-    padding: 0; }
+a {
+  text-decoration: none;
+  color: #6d929b;
+  font-weight: bold; }
+  a:hover {
+    text-decoration: underline; }
