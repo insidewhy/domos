@@ -132,10 +132,12 @@ function transitionElement(node, changeTypes, _changes, callback) {
           })
           nod.removeEventListener('transitionend', handleTransition)
           nod.removeEventListener('webkitTransitionEnd', handleTransition)
-          autoTypes.forEach(type => { css(node, type, 'auto') })
-          if (callback)
-            callback()
+
           finishedTransition = true
+          withoutTransitions(
+            () => {
+              autoTypes.forEach(type => { css(node, type, 'auto') })
+            }, callback)
         }
       } // end of transition end callback
 
@@ -183,32 +185,53 @@ function transitionElement(node, changeTypes, _changes, callback) {
     return nodeVal === '' || nodeVal === 'auto'
   }
 
+  var withoutTransitions = (without, after) => {
+    if (TRANSITIONS_AUTO_AS_0px) {
+      var backupTrans = compCss(node, 'transition')
+      css(node, 'transition', 'none')
+      if (without)
+        without()
+      setTimeout(() => {
+        css(node, 'transition', backupTrans)
+        if (after)
+          after()
+      })
+    }
+    else {
+      if (without)
+        without()
+      if (after)
+        after()
+    }
+  }
+
+  var makeCssChangesHelper = () => {
+    if (STATE_INCORRECT_AFTER_SET)
+      setTimeout(makeCssChanges, STATE_INCORRECT_AFTER_SET_LAG)
+    else
+      makeCssChanges()
+  }
+
   if (TRANSITIONS_AUTO_AS_0px && changeTypes.some(isAuto)) {
     // to fix transition from auto then set types that have auto
     // to the computed size
-    var backupTrans = compCss(node, 'transition')
-    css(node, 'transition', 'none')
-    handleAutos()
-    // there seems to be a lag before the transition turning off can take
-    // place so delaying by 0s is a good way of dealing with this
-    setTimeout(() => {
-      css(node, 'transition', backupTrans)
-      makeCssChanges()
-    }, 0)
-    return
+    withoutTransitions(handleAutos, makeCssChangesHelper)
   }
   else {
     handleAutos()
-    autoTypes.forEach(type => {
-      var bak = compCss(node, type)
-      css(node, type, 'auto')
-      changes[type] = compCss(node, type)
-      css(node, type, bak)
-    })
-  }
 
-  if (STATE_INCORRECT_AFTER_SET)
-    setTimeout(makeCssChanges, STATE_INCORRECT_AFTER_SET_LAG)
-  else
-    makeCssChanges()
+    if (autoTypes.length) {
+      withoutTransitions(() => {
+        autoTypes.forEach(type => {
+          var bak = compCss(node, type)
+          css(node, type, 'auto')
+          changes[type] = compCss(node, type)
+          css(node, type, bak)
+        })
+      }, makeCssChangesHelper)
+    }
+    else {
+      makeCssChangesHelper()
+    }
+  }
 }
