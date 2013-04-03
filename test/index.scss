@@ -36,7 +36,7 @@ h1 {
 #block3 {
   background-color: red;
   @include transition(height 0.8s linear);
-  // TODO: height: auto;
+  height: auto;
 }
 
 body >div {

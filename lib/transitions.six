@@ -11,7 +11,7 @@ var VERY_SMALL = 0.00001
 // https://bugzil.la/849399
 var FFX_SWITCH_BUG =
   /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent),
-    FIREFOX_NEEDS_SLEEP_FOR = 20 // 10 is a bit too small
+    FIREFOX_STATE_LAG = 20 // 10 is a bit too small
 
 /// Transition selector containing one or many HTML elements.
 export function transition(nodes, name, value, callback) {
@@ -33,9 +33,6 @@ export function transition(nodes, name, value, callback) {
         parseFloat(changes[type]) > VERY_SMALL)
     {
       nodes.show()
-      // "fixes" lack of fade-in in both firefox/chrome, not a clue why and
-      // hoping this isn't some subtle trap in the html5 spec
-      $each(nodes, node => compCss(node, type))
     }
   })
 
@@ -72,17 +69,25 @@ var removeTransitionState = (nod, type, removeEmpty) => {
 
 /// Transition selector containing single HTML element.
 function transitionElement(node, changeTypes, changes, callback) {
-  node.css(changes)
+  // to fix transition from auto then set types that have auto
+  // to the computed size
+  changeTypes.forEach(type => {
+    if (node[0].style[type] === '')
+      css(node, type, compCss(node, type))
+  })
 
-  var pendingChanges = () =>
-    changeTypes.some(type =>
-      Math.abs(parseFloat(compCss(node, type))
-               - parseFloat(changes[type])) > VERY_SMALL)
+  // firefox needs a delay after this step else the transition will not fire
+  var makeCssChanges = () => {
+    node.css(changes)
 
-  var finishedTransition = false
+    var pendingChanges = () =>
+      changeTypes.some(type =>
+        Math.abs(parseFloat(compCss(node, type))
+                 - parseFloat(changes[type])) > VERY_SMALL)
 
-  // this helper is necessary due to https://bugzil.la/849399
-  var transitionHelper = () => {
+    var finishedTransition = false
+
+    // this helper is necessary due to https://bugzil.la/849399
     if (pendingChanges()) {
       // a transition occurred
       var nod = node[0]
@@ -109,7 +114,7 @@ function transitionElement(node, changeTypes, changes, callback) {
         }
 
         if (! pendingChanges()) {
-          // all is done
+          // transition completed
           changeTypes.forEach(type => {
             removeTransitionState(nod, type, true)
           })
@@ -119,7 +124,7 @@ function transitionElement(node, changeTypes, changes, callback) {
             callback()
           finishedTransition = true
         }
-      }
+      } // end of transition end callback
 
       if (nod.__domosTransition) {
         changeTypes.forEach(type => {
@@ -159,7 +164,7 @@ function transitionElement(node, changeTypes, changes, callback) {
   }
 
   if (FFX_SWITCH_BUG)
-    setTimeout(transitionHelper, FIREFOX_NEEDS_SLEEP_FOR)
+    setTimeout(makeCssChanges, FIREFOX_STATE_LAG)
   else
-    transitionHelper()
+    makeCssChanges()
 }
