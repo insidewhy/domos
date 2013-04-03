@@ -817,7 +817,7 @@ define('select',['require','exports','module','./util','./transitions'],function
             if (isOpen)
               return;
             isOpen = true;
-            css(this.$, "height", "auto");
+            transition(this.$, "height", "auto");
             this.$.addClass("open");
             highlightIdx(this._selectedIndex, true);
             var onKeydown = function (e) {
