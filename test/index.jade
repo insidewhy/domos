@@ -4,7 +4,7 @@ html
     script(src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.4/underscore-min.js")
     script(src="domos.src.js")
     script(type="text/javascript")
-      $(document).ready(function() {
+      function runTransTest() {
         var block1 = $('#block1'),
             block2 = $('#block2'),
             block3 = $('#block3')
@@ -34,11 +34,14 @@ html
             })
           })
         })
-      })
+      }
     link(rel="stylesheet", type="text/css", href="index.css")
   body
-    h1 Transition effects
-    #block3
-      h1 A
-    #block2
-    #block1
+    article
+      h1 Transition effects
+      #block3
+        h1 A
+      #block2
+      #block1
+      footer
+        a(href="javascript:void(0)", onclick="runTransTest()") Run

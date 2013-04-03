@@ -1,7 +1,9 @@
 @import "compass/reset";
 @import "compass/css3";
+@import "compass/typography/links";
 
-$bgcolour: #e8d0a9;
+$bg-colour: #e8d0a9;
+$link-colour: #6d929b;
 
 @import url(http://fonts.googleapis.com/css?family=Source+Sans+Pro);
 
@@ -12,18 +14,37 @@ html {
 body {
   font-family: 'Source Sans Pro', sans-serif;
   padding: 20px;
-  @include background(linear-gradient(top, lighten($bgcolour, 8%) 20%,
-                                           darken($bgcolour, 1%)  50%,
-                                           lighten($bgcolour, 8%) 80%));
+  @include background(linear-gradient(top, lighten($bg-colour, 8%) 20%,
+                                           darken($bg-colour, 1%)  50%,
+                                           lighten($bg-colour, 8%) 80%));
   min-height: 100%;
 
+}
+
+article {
   >h1 {
     @include text-shadow(rgba(black, 0.5) 1px 1px 2px);
+  }
+  >footer {
+    clear: left;
   }
 }
 
 h1 {
   font-size: 2.3em;
+}
+
+#block1,#block2,#block3 {
+  margin: 10px 20px 10px 0;
+  float: left;
+  width: 100px;
+  height: 100px;
+  padding: 10px;
+  h1 {
+    font-size: 50pt;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 #block1 {
@@ -39,15 +60,8 @@ h1 {
   height: auto;
 }
 
-body >div {
-  margin: 10px;
-  float: left;
-  width: 100px;
-  height: 100px;
-  padding: 10px;
-  h1 {
-    font-size: 50pt;
-    margin: 0;
-    padding: 0;
-  }
+a {
+  @include hover-link;
+  @include link-colors($link-colour);
+  font-weight: bold;
 }
