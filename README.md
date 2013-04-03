@@ -22,7 +22,7 @@ Rather than providing its own history API shim as [Backbone Router](http://backb
  * Allows transitions to be configured and turned off from CSS. Callbacks run immediately when no transition is necessary.
  * A state change can be performed on many elements and in this case a single callback is fired. The cancelled argument is false only if all of the transitions finished successfully.
  * Elements are automatically hidden and re-displayed as attributes cause them to shrink to 0 in (max) width/height or fade to 0 opacity. This removes ugly borders on elements with 0 width/height and avoids faded elements interfering with the flow of the page.
- * Transitions to/from a height/width of "auto".
+ * Transitions to/from a height/width of "auto" (currently Webkit based browsers treat auto as "0px" and Firefox avoids transitions to/from auto).
 
 ### domos.tooltip
  * Tooltips with pointers. These make a great customisable alternative to default HTML5 form validation tooltips provided by current browsers. 
