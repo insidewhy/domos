@@ -79,7 +79,8 @@ h1 {
   -webkit-transition: height 0.8s linear;
   -moz-transition: height 0.8s linear;
   -o-transition: height 0.8s linear;
-  transition: height 0.8s linear; }
+  transition: height 0.8s linear;
+  height: auto; }
 
 body > div {
   margin: 10px;

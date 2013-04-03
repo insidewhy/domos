@@ -55,7 +55,7 @@ define('transitions',['require','exports','module','./util'],function (require, 
       "height"
     ];
   var VERY_SMALL = 0.00001;
-  var FFX_SWITCH_BUG = /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent), FIREFOX_NEEDS_SLEEP_FOR = 20;
+  var FFX_SWITCH_BUG = /Firefox\/1[0-9](?:\.[0-9]+)?/.test(navigator.userAgent), FIREFOX_STATE_LAG = 20;
   var transition = exports.transition = function (nodes, name, value, callback) {
       var changes;
       if (typeof name === "string") {
@@ -69,9 +69,6 @@ define('transitions',['require','exports','module','./util'],function (require, 
       changeTypes.some(function (type) {
         if (SWITCH_ATTRS.indexOf(type) !== -1 && parseFloat(changes[type]) > VERY_SMALL) {
           nodes.show();
-          $each(nodes, function (node) {
-            return compCss(node, type);
-          }.bind(this));
         }
       }.bind(this));
       var nTrans = nodes.length;
@@ -100,14 +97,18 @@ define('transitions',['require','exports','module','./util'],function (require, 
       }
     }.bind(this);
   function transitionElement(node, changeTypes, changes, callback) {
-    node.css(changes);
-    var pendingChanges = function () {
-        return changeTypes.some(function (type) {
-          return Math.abs(parseFloat(compCss(node, type)) - parseFloat(changes[type])) > VERY_SMALL;
-        }.bind(this));
-      }.bind(this);
-    var finishedTransition = false;
-    var transitionHelper = function () {
+    changeTypes.forEach(function (type) {
+      if (node[0].style[type] === "")
+        css(node, type, compCss(node, type));
+    }.bind(this));
+    var makeCssChanges = function () {
+        node.css(changes);
+        var pendingChanges = function () {
+            return changeTypes.some(function (type) {
+              return Math.abs(parseFloat(compCss(node, type)) - parseFloat(changes[type])) > VERY_SMALL;
+            }.bind(this));
+          }.bind(this);
+        var finishedTransition = false;
         if (pendingChanges()) {
           var nod = node[0];
           var handleTransition = function (e) {
@@ -161,9 +162,9 @@ define('transitions',['require','exports','module','./util'],function (require, 
         }
       }.bind(this);
     if (FFX_SWITCH_BUG)
-      setTimeout(transitionHelper, FIREFOX_NEEDS_SLEEP_FOR);
+      setTimeout(makeCssChanges, FIREFOX_STATE_LAG);
     else
-      transitionHelper();
+      makeCssChanges();
   }
 });
 if (typeof exports === 'object' && typeof define !== 'function') {
