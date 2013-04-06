@@ -40,27 +40,29 @@ export function transition(nodes, name, value, callback) {
     }
   })
 
-  var nTrans = nodes.length
-  if (! callback || nTrans === 1) {
-    transitionElement(nodes, attributes, changes, callback)
-  }
-  else {
-    var hasBeenCancelled = false, nTransitions = nodes.length
-
-    var onSingleTransition = cancelled => {
-      if (hasBeenCancelled)
-        return
-
-      if (cancelled)
-        callback(hasBeenCancelled = true)
-      else if (! --nTrans)
-        callback()
+  fixAutos(nodes, attributes, () => {
+    var nTrans = nodes.length
+    if (! callback || nTrans === 1) {
+      transitionElement(nodes, attributes, changes, callback)
     }
+    else {
+      var hasBeenCancelled = false, nTransitions = nodes.length
 
-    $each(nodes, node => {
-      transitionElement(node, attributes, changes, onSingleTransition)
-    })
-  }
+      var onSingleTransition = cancelled => {
+        if (hasBeenCancelled)
+          return
+
+        if (cancelled)
+          callback(hasBeenCancelled = true)
+        else if (! --nTrans)
+          callback()
+      }
+
+      $each(nodes, node => {
+        transitionElement(node, attributes, changes, onSingleTransition)
+      })
+    }
+  })
 }
 
 /// Set css properties from auto to their current values.
@@ -257,25 +259,22 @@ function transitionElement(node, attributes, _changes, callback) {
       makeCssChanges()
   }
 
-  // TODO: pull this up a little and perform on all levels at once
-  fixAutos(node, attributes, () => {
-    attributes.forEach(type => {
-      if (_changes[type] === 'auto')
-        autoTypes.push(type)
-    })
-
-    if (autoTypes.length) {
-      withoutTransitions(node, () => {
-        autoTypes.forEach(type => {
-          var bak = compCss(node, type)
-          css(node, type, 'auto')
-          changes[type] = compCss(node, type)
-          css(node, type, bak)
-        })
-      }, makeCssChangesHelper)
-    }
-    else {
-      makeCssChangesHelper()
-    }
+  attributes.forEach(type => {
+    if (_changes[type] === 'auto')
+      autoTypes.push(type)
   })
+
+  if (autoTypes.length) {
+    withoutTransitions(node, () => {
+      autoTypes.forEach(type => {
+        var bak = compCss(node, type)
+        css(node, type, 'auto')
+        changes[type] = compCss(node, type)
+        css(node, type, bak)
+      })
+    }, makeCssChangesHelper)
+  }
+  else {
+    makeCssChangesHelper()
+  }
 }
