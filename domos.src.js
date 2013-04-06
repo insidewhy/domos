@@ -66,53 +66,104 @@ define('transitions',['require','exports','module','./util'],function (require, 
         changes = name;
         callback = value;
       }
-      var changeTypes = Object.keys(changes), nChanges = changeTypes.length;
-      changeTypes.some(function (type) {
+      var attributes = Object.keys(changes), nChanges = attributes.length;
+      attributes.some(function (type) {
         if (SWITCH_ATTRS.indexOf(type) !== -1 && parseFloat(changes[type]) > VERY_SMALL) {
           nodes.show();
         }
       }.bind(this));
-      var nTrans = nodes.length;
-      if (!callback || nTrans === 1) {
-        transitionElement(nodes, changeTypes, changes, callback);
-      } else {
-        var hasBeenCancelled = false, nTransitions = nodes.length;
-        var onSingleTransition = function (cancelled) {
-            if (hasBeenCancelled)
-              return;
-            if (cancelled)
-              callback(hasBeenCancelled = true);
-            else if (!--nTrans)
-              callback();
-          }.bind(this);
+      fixAutos(nodes, attributes, function () {
+        var nTrans = nodes.length;
+        if (!callback || nTrans === 1) {
+          transitionElement(nodes, attributes, changes, callback);
+        } else {
+          var hasBeenCancelled = false, nTransitions = nodes.length;
+          var onSingleTransition = function (cancelled) {
+              if (hasBeenCancelled)
+                return;
+              if (cancelled)
+                callback(hasBeenCancelled = true);
+              else if (!--nTrans)
+                callback();
+            }.bind(this);
+          $each(nodes, function (node) {
+            transitionElement(node, attributes, changes, onSingleTransition);
+          }.bind(this));
+        }
+      }.bind(this));
+    };
+  var fixAutos = exports.fixAutos = function (nodes, attributes, callback) {
+      if (typeof attributes === "string")
+        attributes = [attributes];
+      if (TRANSITIONS_AUTO_AS_0px) {
+        var autosToFix = [];
         $each(nodes, function (node) {
-          transitionElement(node, changeTypes, changes, onSingleTransition);
+          attributes.forEach(function (type) {
+            var val = node[0].style[type];
+            if (val === "" || val === "auto")
+              autosToFix.push({
+                type: type,
+                node: node
+              });
+          }.bind(this));
         }.bind(this));
+        if (autosToFix.length) {
+          withoutTransitions(nodes, function () {
+            autosToFix.forEach(function (fix) {
+              css(fix.node, fix.type, compCss(fix.node, fix.type));
+            }.bind(this));
+          }.bind(this), callback);
+        } else {
+          callback();
+        }
+      } else {
+        $each(nodes, function (node) {
+          attributes.forEach(function (type) {
+            var val = node[0].style[type];
+            if (val === "" || val === "auto")
+              css(node, type, compCss(node, type));
+          }.bind(this));
+        }.bind(this));
+        callback();
       }
     };
-  var removeTransitionState = function (nod, type, removeEmpty) {
-      if (nod.__domosTransition[type]) {
-        delete nod.__domosTransition[type];
-        if (--nod.__domosTransition.nKeys === 0 && removeEmpty)
-          delete nod.__domosTransition;
+  function removeTransitionState(nod, type, removeEmpty) {
+    if (nod.__domosTransition[type]) {
+      delete nod.__domosTransition[type];
+      if (--nod.__domosTransition.nKeys === 0 && removeEmpty)
+        delete nod.__domosTransition;
+    }
+  }
+  var withoutTransitions = exports.withoutTransitions = function (nodes, without, after) {
+      if (TRANSITIONS_AUTO_AS_0px) {
+        $each(nodes, function (node) {
+          node[0].__domosBackupTrans = compCss(node, "transition");
+          css(node, "transition", "none");
+        }.bind(this));
+        if (without)
+          without();
+        setTimeout(function () {
+          $each(nodes, function (node) {
+            css(node, "transition", node[0].__domosBackupTrans);
+            delete node[0].__domosBackupTrans;
+          }.bind(this));
+          if (after)
+            after();
+        }.bind(this));
+      } else {
+        if (without)
+          without();
+        if (after)
+          after();
       }
-    }.bind(this);
-  function transitionElement(node, changeTypes, _changes, callback) {
+    };
+  function transitionElement(node, attributes, _changes, callback) {
     var changes = Object.create(_changes);
     var autoTypes = [];
-    var handleAutos = function () {
-        changeTypes.forEach(function (type) {
-          if (_changes[type] === "auto")
-            autoTypes.push(type);
-          var val = node[0].style[type];
-          if (val === "" || val === "auto")
-            css(node, type, compCss(node, type));
-        }.bind(this));
-      }.bind(this);
     var makeCssChanges = function () {
         node.css(changes);
         var pendingChanges = function () {
-            return changeTypes.some(function (type) {
+            return attributes.some(function (type) {
               return Math.abs(parseFloat(compCss(node, type)) - parseFloat(changes[type])) > VERY_SMALL;
             }.bind(this));
           }.bind(this);
@@ -132,13 +183,13 @@ define('transitions',['require','exports','module','./util'],function (require, 
                 node.css("display", "none");
               }
               if (!pendingChanges()) {
-                changeTypes.forEach(function (type) {
+                attributes.forEach(function (type) {
                   removeTransitionState(nod, type, true);
                 }.bind(this));
                 nod.removeEventListener("transitionend", handleTransition);
                 nod.removeEventListener("webkitTransitionEnd", handleTransition);
                 finishedTransition = true;
-                withoutTransitions(function () {
+                withoutTransitions(node, function () {
                   autoTypes.forEach(function (type) {
                     css(node, type, "auto");
                   }.bind(this));
@@ -146,7 +197,7 @@ define('transitions',['require','exports','module','./util'],function (require, 
               }
             }.bind(this);
           if (nod.__domosTransition) {
-            changeTypes.forEach(function (type) {
+            attributes.forEach(function (type) {
               var listener = nod.__domosTransition[type];
               if (listener) {
                 listener(null);
@@ -158,14 +209,14 @@ define('transitions',['require','exports','module','./util'],function (require, 
           } else {
             nod.__domosTransition = {};
           }
-          changeTypes.forEach(function (type) {
+          attributes.forEach(function (type) {
             nod.__domosTransition[type] = handleTransition;
           }.bind(this));
-          nod.__domosTransition.nKeys = changeTypes.length;
+          nod.__domosTransition.nKeys = attributes.length;
           nod.addEventListener("transitionend", handleTransition);
           nod.addEventListener("webkitTransitionEnd", handleTransition);
         } else {
-          if (changeTypes.some(function (type) {
+          if (attributes.some(function (type) {
               return SWITCH_ATTRS.indexOf(type) !== -1 && parseFloat(changes[type]) < VERY_SMALL;
             }.bind(this))) {
             node.css("display", "none");
@@ -174,50 +225,27 @@ define('transitions',['require','exports','module','./util'],function (require, 
             callback();
         }
       }.bind(this);
-    var isAuto = function (type) {
-        var nodeVal = node[0].style[type];
-        return nodeVal === "" || nodeVal === "auto";
-      }.bind(this);
-    var withoutTransitions = function (without, after) {
-        if (TRANSITIONS_AUTO_AS_0px) {
-          var backupTrans = compCss(node, "transition");
-          css(node, "transition", "none");
-          if (without)
-            without();
-          setTimeout(function () {
-            css(node, "transition", backupTrans);
-            if (after)
-              after();
-          }.bind(this));
-        } else {
-          if (without)
-            without();
-          if (after)
-            after();
-        }
-      }.bind(this);
     var makeCssChangesHelper = function () {
         if (STATE_INCORRECT_AFTER_SET)
           setTimeout(makeCssChanges, STATE_INCORRECT_AFTER_SET_LAG);
         else
           makeCssChanges();
       }.bind(this);
-    if (TRANSITIONS_AUTO_AS_0px && changeTypes.some(isAuto)) {
-      withoutTransitions(handleAutos, makeCssChangesHelper);
+    attributes.forEach(function (type) {
+      if (_changes[type] === "auto")
+        autoTypes.push(type);
+    }.bind(this));
+    if (autoTypes.length) {
+      withoutTransitions(node, function () {
+        autoTypes.forEach(function (type) {
+          var bak = compCss(node, type);
+          css(node, type, "auto");
+          changes[type] = compCss(node, type);
+          css(node, type, bak);
+        }.bind(this));
+      }.bind(this), makeCssChangesHelper);
     } else {
-      handleAutos();
-      if (autoTypes.length) {
-        withoutTransitions(function () {
-          autoTypes.forEach(function (type) {
-            var bak = compCss(node, type);
-            css(node, type, "auto");
-            changes[type] = compCss(node, type);
-            css(node, type, bak);
-          }.bind(this));
-        }.bind(this), makeCssChangesHelper);
-      } else {
-        makeCssChangesHelper();
-      }
+      makeCssChangesHelper();
     }
   }
 });
