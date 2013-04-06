@@ -95,7 +95,7 @@ export function fixAutos(nodes, attributes, callback) {
         })
       }, callback)
     }
-    else {
+    else if (callback) {
       callback()
     }
   }
@@ -107,7 +107,9 @@ export function fixAutos(nodes, attributes, callback) {
           css(node, type, compCss(node, type))
       })
     })
-    callback()
+
+    if (callback)
+      callback()
   }
 }
 
