@@ -29,10 +29,10 @@ export function transition(nodes, name, value, callback) {
     callback = value
   }
 
-  var changeTypes = Object.keys(changes),
-      nChanges    = changeTypes.length
+  var attributes = Object.keys(changes),
+      nChanges   = attributes.length
 
-  changeTypes.some(type => {
+  attributes.some(type => {
     if (SWITCH_ATTRS.indexOf(type) !== -1 &&
         parseFloat(changes[type]) > VERY_SMALL)
     {
@@ -42,7 +42,7 @@ export function transition(nodes, name, value, callback) {
 
   var nTrans = nodes.length
   if (! callback || nTrans === 1) {
-    transitionElement(nodes, changeTypes, changes, callback)
+    transitionElement(nodes, attributes, changes, callback)
   }
   else {
     var hasBeenCancelled = false, nTransitions = nodes.length
@@ -58,12 +58,58 @@ export function transition(nodes, name, value, callback) {
     }
 
     $each(nodes, node => {
-      transitionElement(node, changeTypes, changes, onSingleTransition)
+      transitionElement(node, attributes, changes, onSingleTransition)
     })
   }
 }
 
-var removeTransitionState = (nod, type, removeEmpty) => {
+/// Set css properties from auto to their current values.
+/// @detail The callback is called immediately in most browsers but a bug
+///         in chrome means will delay the callback to later as the
+///         js must yield control to avoid a transition to 0.
+/// @param nodes Nodes to transition
+/// @param attributes Single string or Array of strings naming CSS
+//                    properties to fix.
+/// @param callback Callback for after nodes have been fixed.
+export function fixAutos(nodes, attributes, callback) {
+  if (typeof attributes === 'string')
+    attributes = [ attributes ]
+
+  if (TRANSITIONS_AUTO_AS_0px) {
+    var autosToFix = []
+
+    $each(nodes, node => {
+      attributes.forEach(type => {
+        var val = node[0].style[type]
+        if (val === '' || val === 'auto')
+          autosToFix.push({ type, node })
+      })
+    })
+
+    if (autosToFix.length) {
+      withoutTransitions(nodes, () => {
+        autosToFix.forEach(fix => {
+          css(fix.node, fix.type, compCss(fix.node, fix.type))
+        })
+      }, callback)
+    }
+    else {
+      callback()
+    }
+  }
+  else {
+    $each(nodes, node => {
+      attributes.forEach(type => {
+        var val = node[0].style[type]
+        if (val === '' || val === 'auto')
+          css(node, type, compCss(node, type))
+      })
+    })
+    callback()
+  }
+}
+
+function removeTransitionState(nod, type, removeEmpty) {
   if (nod.__domosTransition[type]) {
     delete nod.__domosTransition[type]
     if (--nod.__domosTransition.nKeys === 0 && removeEmpty)
@@ -71,29 +117,52 @@ var removeTransitionState = (nod, type, removeEmpty) => {
   }
 }
 
-/// Transition selector containing single HTML element.
-function transitionElement(node, changeTypes, _changes, callback) {
-  var changes = Object.create(_changes)
-  var autoTypes = []
+/// Perform a set of actions on some nodes without their css transitions
+/// turned on.
+/// @detail Due to a bug where webkit regards auto as 0px during transitions
+///         without and after may not be called until after a setTimeout
+///         on these browsers.
+/// @param nodes   Nodes to disable transitions for.
+/// @param without Function to perform while transitions are disabled.
+/// @param after   Function to perform after node transitions are re-enabled.
+export function withoutTransitions(nodes, without, after) {
+  if (TRANSITIONS_AUTO_AS_0px) {
+    $each(nodes, node => {
+      node[0].__domosBackupTrans = compCss(node, 'transition')
+      css(node, 'transition', 'none')
+    })
 
-  // handle transitions to and from auto
-  var handleAutos = () => {
-    changeTypes.forEach(type => {
-      if (_changes[type] === 'auto')
-        autoTypes.push(type)
-
-      var val = node[0].style[type]
-      if (val === '' || val === 'auto')
-        css(node, type, compCss(node, type))
+    if (without)
+      without()
+    setTimeout(() => {
+      $each(nodes, node => {
+        css(node, 'transition', node[0].__domosBackupTrans)
+        delete node[0].__domosBackupTrans
+      })
+      if (after)
+        after()
     })
   }
+  else {
+    if (without)
+      without()
+    if (after)
+      after()
+  }
+}
+
+
+/// Transition selector containing single HTML element.
+function transitionElement(node, attributes, _changes, callback) {
+  var changes = Object.create(_changes)
+  var autoTypes = []
 
   // firefox needs a delay after this step else the transition will not fire
   var makeCssChanges = () => {
     node.css(changes)
 
     var pendingChanges = () =>
-      changeTypes.some(type =>
+      attributes.some(type =>
         Math.abs(parseFloat(compCss(node, type))
                  - parseFloat(changes[type])) > VERY_SMALL)
 
@@ -127,7 +196,7 @@ function transitionElement(node, changeTypes, _changes, callback) {
 
         if (! pendingChanges()) {
           // transition completed
-          changeTypes.forEach(type => {
+          attributes.forEach(type => {
             removeTransitionState(nod, type, true)
           })
           nod.removeEventListener('transitionend', handleTransition)
@@ -135,6 +204,7 @@ function transitionElement(node, changeTypes, _changes, callback) {
 
           finishedTransition = true
           withoutTransitions(
+            node,
             () => {
               autoTypes.forEach(type => { css(node, type, 'auto') })
             }, callback)
@@ -142,7 +212,7 @@ function transitionElement(node, changeTypes, _changes, callback) {
       } // end of transition end callback
 
       if (nod.__domosTransition) {
-        changeTypes.forEach(type => {
+        attributes.forEach(type => {
           // show it has cancelled
           var listener = nod.__domosTransition[type]
           if (listener) {
@@ -159,16 +229,16 @@ function transitionElement(node, changeTypes, _changes, callback) {
         nod.__domosTransition = {}
       }
 
-      changeTypes.forEach(type => {
+      attributes.forEach(type => {
         nod.__domosTransition[type] = handleTransition
       })
-      nod.__domosTransition.nKeys = changeTypes.length
+      nod.__domosTransition.nKeys = attributes.length
 
       nod.addEventListener('transitionend', handleTransition)
       nod.addEventListener('webkitTransitionEnd', handleTransition)
     }
     else {
-      if (changeTypes.some(type =>
+      if (attributes.some(type =>
             SWITCH_ATTRS.indexOf(type) !== -1 &&
             parseFloat(changes[type]) < VERY_SMALL))
       {
@@ -180,31 +250,6 @@ function transitionElement(node, changeTypes, _changes, callback) {
     }
   }
 
-  var isAuto = type => {
-    var nodeVal = node[0].style[type]
-    return nodeVal === '' || nodeVal === 'auto'
-  }
-
-  var withoutTransitions = (without, after) => {
-    if (TRANSITIONS_AUTO_AS_0px) {
-      var backupTrans = compCss(node, 'transition')
-      css(node, 'transition', 'none')
-      if (without)
-        without()
-      setTimeout(() => {
-        css(node, 'transition', backupTrans)
-        if (after)
-          after()
-      })
-    }
-    else {
-      if (without)
-        without()
-      if (after)
-        after()
-    }
-  }
-
   var makeCssChangesHelper = () => {
     if (STATE_INCORRECT_AFTER_SET)
       setTimeout(makeCssChanges, STATE_INCORRECT_AFTER_SET_LAG)
@@ -212,16 +257,15 @@ function transitionElement(node, changeTypes, _changes, callback) {
       makeCssChanges()
   }
 
-  if (TRANSITIONS_AUTO_AS_0px && changeTypes.some(isAuto)) {
-    // to fix transition from auto then set types that have auto
-    // to the computed size
-    withoutTransitions(handleAutos, makeCssChangesHelper)
-  }
-  else {
-    handleAutos()
+  // TODO: pull this up a little and perform on all levels at once
+  fixAutos(node, attributes, () => {
+    attributes.forEach(type => {
+      if (_changes[type] === 'auto')
+        autoTypes.push(type)
+    })
 
     if (autoTypes.length) {
-      withoutTransitions(() => {
+      withoutTransitions(node, () => {
         autoTypes.forEach(type => {
           var bak = compCss(node, type)
           css(node, type, 'auto')
@@ -233,5 +277,5 @@ function transitionElement(node, changeTypes, _changes, callback) {
     else {
       makeCssChangesHelper()
     }
-  }
+  })
 }
