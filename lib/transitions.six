@@ -46,14 +46,16 @@ export function transition(nodes, name, value, callback) {
       transitionElement(nodes, attributes, changes, callback)
     }
     else {
-      var hasBeenCancelled = false, nTransitions = nodes.length
+      var nTransitions = nodes.length
 
       var onSingleTransition = cancelled => {
-        if (hasBeenCancelled)
+        if (nTransitions === -1)
           return
 
-        if (cancelled)
-          callback(hasBeenCancelled = true)
+        if (cancelled) {
+          nTransitions = -1
+          callback(true)
+        }
         else if (! --nTrans)
           callback()
       }

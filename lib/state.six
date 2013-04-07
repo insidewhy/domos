@@ -140,26 +140,23 @@ export class State {
         return
       }
 
-      var nTrans = transitions.length, isCancelled = false
+      var nTrans = transitions.length
       var runAfter = cancelled => {
-        if (cancelled) {
-          if (isCancelled)
-            return
-          isCancelled = true
+        if (nTrans === -1)
+          return
 
+        if (cancelled) {
+          nTrans = -1
           if (callback)
             callback(cancelled)
         }
-        else if (! --nTrans) {
+        else if (--nTrans === 0) {
           if (callback)
             callback()
+          this._trigger(type, val)
+          if (! opts.noStateChangeEvent)
+            this.trigger('state-change', this.state, changes)
         }
-        else
-          return
-
-        this._trigger(type, val)
-        if (! opts.noStateChangeEvent)
-          this.trigger('state-change', this.state, changes)
       }
 
       transitions.forEach(trans => {
