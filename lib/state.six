@@ -1,6 +1,8 @@
 import transition from './transitions'
 import {$each, css} from './util'
 
+var isNullState = val => val === null || val === 'null'
+
 export class State {
   constructor(opts) {
     _.extend(this, Backbone.Events)
@@ -20,6 +22,20 @@ export class State {
     this.state = {}
   }
 
+  /// Test if a value would cause a type change and if so return
+  /// the previous value.
+  /// @param type The type to check.
+  /// @param val  If the value equals this then return null instead of
+  ///             the previous else return it as a string.
+  _isChange(type, val) {
+    var prevVal = this.state[type] || null
+
+    if (prevVal === null)
+      return isNullState(val) ? null : 'null'
+    else
+      return prevVal === val ? null : '' + prevVal
+  }
+
   /// Change elements below a parent selector according to data tags denoting
   /// how the tag should look depending on certain states.
   /// @param type       State type.
@@ -27,34 +43,83 @@ export class State {
   /// @param callback   Optional callback to run after all operations have
   ///                   complete. Takes argument "cancelled" to determine
   ///                   if all state changes were successful.
-  /// @param sel        Override parent by which to limit elements to change.
-  set(type, val, callback, sel) {
-    var changedTypes = []
+  /// @param opts       Options override.
+  set(type, val, callback, opts) {
+    if (typeof type === 'object') {
+      opts = callback || {}
+      callback = val
+      val = type
 
-    if (val === null || val === 'null') {
-      if (! this.state[type]) {
-        this._trigger('redo', type, 'null')
+      // call set for each property but aggregate events
+      opts = Object.create(opts)
+      opts.noStateChangeEvent = true
+
+      var changes = {}
+      var changeTypes = Object.keys(val).filter(type => {
+        var typeVal = val[type]
+        var prevVal = this._isChange(type, typeVal)
+        if (prevVal === null) {
+          this._trigger('redo', type, '' + typeVal)
+          return false
+        }
+
+        changes[type] = prevVal
+        return true
+      })
+
+      var nChangesLeft = changes.length = changeTypes.length
+      if (nChangesLeft === 0)
         return
+
+      var onSingleStateChange = cancelled => {
+        if (nChangesLeft === -1)
+          return
+
+        if (cancelled) {
+          nChangesLeft = -1
+          if (callback)
+            callback(true)
+        }
+        else if (--nChangesLeft === 0) {
+          this.trigger('state-change', this.state, changes)
+          if (callback)
+            callback()
+        }
       }
 
-      // the field-change event will contain the string null
+      changeTypes.forEach(type => {
+        this.set(type, val[type], onSingleStateChange, opts)
+      })
+
+      this.trigger('before:state-change', this.state, changes)
+      return
+    }
+
+    if (! opts)
+      opts = {}
+
+    var prevVal = this._isChange(type, val)
+    if (prevVal === null) {
+      this._trigger('redo', type, '' + val) // '' + to turn null into string
+      return
+    }
+
+    if (isNullState(val)) {
       val = 'null'
-      changedTypes.push(type)
       delete this.state[type]
     }
     else {
-      if (this.state[type] === val) {
-        this._trigger('redo', type, val)
-        return
-      }
-
       this.state[type] = val
-      changedTypes.push(type)
     }
 
-    var transitions = this._getTransitions(type, val)
+    var transitions = this._getTransitions(type, val, opts)
 
     this._trigger('before', type, val)
+    if (! opts.noStateChangeEvent) {
+      var changes = { length: 1 }
+      changes[type] = prevVal
+      this.trigger('before:state-change', this.state, changes)
+    }
 
     // find "fade out" transitons
     var fadeOutTrans = $()
@@ -93,7 +158,8 @@ export class State {
           return
 
         this._trigger(type, val)
-        this.trigger('state-change', this.state, changedTypes)
+        if (! opts.noStateChangeEvent)
+          this.trigger('state-change', this.state, changes)
       }
 
       transitions.forEach(trans => {
@@ -117,9 +183,10 @@ export class State {
   /// Get transitions relating to a state.
   /// @param sel Optional override parent by which to limit elements to
   //         change (otherwise selectorMap/default is used).
-  _getTransitions(type, val, sel) {
+  _getTransitions(type, val, opts) {
     var transitions = []
 
+    var sel = opts && opts.sel
     if (! sel)
       sel = this._selectorFor(type)
 
@@ -202,7 +269,7 @@ export class State {
 
   /// Restore state from object to UI avoiding all transition effects.
   /// @param state Accepts object like state attribute of type against value.
-  restore(state) {
+  restore(state, opts) {
     this.state = state
 
     _.each(state, (val, type) => {
@@ -211,7 +278,7 @@ export class State {
           delete this.state[type]
         }
 
-        var transitions = this._getTransitions(type, val)
+        var transitions = this._getTransitions(type, val, opts)
 
         this._trigger('before', type, val)
 
