@@ -258,6 +258,9 @@ if (typeof exports === 'object' && typeof define !== 'function') {
 define('state',['require','exports','module','./transitions','./util'],function (require, exports) {
   var transition = require("./transitions").transition;
   var __util = require("./util"), $each = __util.$each, css = __util.css;
+  var isNullState = function (val) {
+      return val === null || val === "null";
+    }.bind(this);
   var State = exports.State = function () {
       function State(opts) {
         _.extend(this, Backbone.Events);
@@ -268,26 +271,73 @@ define('state',['require','exports','module','./transitions','./util'],function 
         this.statePrefix = opts.statePrefix || "s-";
         this.state = {};
       }
-      State.prototype.set = function (type, val, callback, sel) {
-        var changedTypes = [];
-        if (val === null || val === "null") {
-          if (!this.state[type]) {
-            this._trigger("redo", type, "null");
+      State.prototype._isChange = function (type, val) {
+        var prevVal = this.state[type] || null;
+        if (prevVal === null)
+          return isNullState(val) ? null : "null";
+        else
+          return prevVal === val ? null : "" + prevVal;
+      };
+      State.prototype.set = function (type, val, callback, opts) {
+        if (typeof type === "object") {
+          opts = callback || {};
+          callback = val;
+          val = type;
+          opts = Object.create(opts);
+          opts.noStateChangeEvent = true;
+          var changes = {};
+          var changeTypes = Object.keys(val).filter(function (type) {
+              var typeVal = val[type];
+              var prevVal = this._isChange(type, typeVal);
+              if (prevVal === null) {
+                this._trigger("redo", type, "" + typeVal);
+                return false;
+              }
+              changes[type] = prevVal;
+              return true;
+            }.bind(this));
+          var nChangesLeft = changes.length = changeTypes.length;
+          if (nChangesLeft === 0)
             return;
-          }
+          var onSingleStateChange = function (cancelled) {
+              if (nChangesLeft === -1)
+                return;
+              if (cancelled) {
+                nChangesLeft = -1;
+                if (callback)
+                  callback(true);
+              } else if (--nChangesLeft === 0) {
+                this.trigger("state-change", this.state, changes);
+                if (callback)
+                  callback();
+              }
+            }.bind(this);
+          changeTypes.forEach(function (type) {
+            this.set(type, val[type], onSingleStateChange, opts);
+          }.bind(this));
+          this.trigger("before:state-change", this.state, changes);
+          return;
+        }
+        if (!opts)
+          opts = {};
+        var prevVal = this._isChange(type, val);
+        if (prevVal === null) {
+          this._trigger("redo", type, "" + val);
+          return;
+        }
+        if (isNullState(val)) {
           val = "null";
-          changedTypes.push(type);
           delete this.state[type];
         } else {
-          if (this.state[type] === val) {
-            this._trigger("redo", type, val);
-            return;
-          }
           this.state[type] = val;
-          changedTypes.push(type);
         }
-        var transitions = this._getTransitions(type, val);
+        var transitions = this._getTransitions(type, val, opts);
         this._trigger("before", type, val);
+        if (!opts.noStateChangeEvent) {
+          var changes = { length: 1 };
+          changes[type] = prevVal;
+          this.trigger("before:state-change", this.state, changes);
+        }
         var fadeOutTrans = $();
         for (var i = 0; i < transitions.length;) {
           var action = transitions[i].action;
@@ -317,7 +367,8 @@ define('state',['require','exports','module','./transitions','./util'],function 
                 } else
                   return;
                 this._trigger(type, val);
-                this.trigger("state-change", this.state, changedTypes);
+                if (!opts.noStateChangeEvent)
+                  this.trigger("state-change", this.state, changes);
               }.bind(this);
             transitions.forEach(function (trans) {
               transition(trans.node, trans.action.cssType, trans.action.cssVal, runAfter);
@@ -331,8 +382,9 @@ define('state',['require','exports','module','./transitions','./util'],function 
       State.prototype._selectorFor = function (type) {
         return this._selectorMap[type] || this._defaultSelector;
       };
-      State.prototype._getTransitions = function (type, val, sel) {
+      State.prototype._getTransitions = function (type, val, opts) {
         var transitions = [];
+        var sel = opts && opts.sel;
         if (!sel)
           sel = this._selectorFor(type);
         var dataTag = "data-" + this.statePrefix + type;
@@ -408,14 +460,14 @@ define('state',['require','exports','module','./transitions','./util'],function 
         this.trigger(prefix + type + "=" + val, val);
         this.trigger(prefix + type, val);
       };
-      State.prototype.restore = function (state) {
+      State.prototype.restore = function (state, opts) {
         this.state = state;
         _.each(state, function (val, type) {
           if (val === null || val === "null") {
             val = "null";
             delete this.state[type];
           }
-          var transitions = this._getTransitions(type, val);
+          var transitions = this._getTransitions(type, val, opts);
           this._trigger("before", type, val);
           transitions.forEach(function (trans) {
             var cssType = trans.action.cssType, cssVal = trans.action.cssVal, node = trans.node;
