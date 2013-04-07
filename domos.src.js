@@ -77,13 +77,14 @@ define('transitions',['require','exports','module','./util'],function (require, 
         if (!callback || nTrans === 1) {
           transitionElement(nodes, attributes, changes, callback);
         } else {
-          var hasBeenCancelled = false, nTransitions = nodes.length;
+          var nTransitions = nodes.length;
           var onSingleTransition = function (cancelled) {
-              if (hasBeenCancelled)
+              if (nTransitions === -1)
                 return;
-              if (cancelled)
-                callback(hasBeenCancelled = true);
-              else if (!--nTrans)
+              if (cancelled) {
+                nTransitions = -1;
+                callback(true);
+              } else if (!--nTrans)
                 callback();
             }.bind(this);
           $each(nodes, function (node) {
@@ -353,22 +354,21 @@ define('state',['require','exports','module','./transitions','./util'],function 
                 callback(cancelled);
               return;
             }
-            var nTrans = transitions.length, isCancelled = false;
+            var nTrans = transitions.length;
             var runAfter = function (cancelled) {
+                if (nTrans === -1)
+                  return;
                 if (cancelled) {
-                  if (isCancelled)
-                    return;
-                  isCancelled = true;
+                  nTrans = -1;
                   if (callback)
                     callback(cancelled);
-                } else if (!--nTrans) {
+                } else if (--nTrans === 0) {
                   if (callback)
                     callback();
-                } else
-                  return;
-                this._trigger(type, val);
-                if (!opts.noStateChangeEvent)
-                  this.trigger("state-change", this.state, changes);
+                  this._trigger(type, val);
+                  if (!opts.noStateChangeEvent)
+                    this.trigger("state-change", this.state, changes);
+                }
               }.bind(this);
             transitions.forEach(function (trans) {
               transition(trans.node, trans.action.cssType, trans.action.cssVal, runAfter);
