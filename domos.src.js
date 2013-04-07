@@ -113,7 +113,7 @@ define('transitions',['require','exports','module','./util'],function (require, 
               css(fix.node, fix.type, compCss(fix.node, fix.type));
             }.bind(this));
           }.bind(this), callback);
-        } else {
+        } else if (callback) {
           callback();
         }
       } else {
@@ -124,7 +124,8 @@ define('transitions',['require','exports','module','./util'],function (require, 
               css(node, type, compCss(node, type));
           }.bind(this));
         }.bind(this));
-        callback();
+        if (callback)
+          callback();
       }
     };
   function removeTransitionState(nod, type, removeEmpty) {
