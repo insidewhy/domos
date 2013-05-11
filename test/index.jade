@@ -42,21 +42,37 @@ html
         })
       }
     script(type="text/javascript")
-      function runStatesTest() {
-        var state = new domos.State()
+      var state = null, cnsl = null
+      function nextStatesTest() {
+        if (! state) {
+          // first run... initialise state
+          cnsl = $('#state-cnsl')
+          state = new domos.State()
+          state.restore({ 'view':  'article', 'login': null })
+          cnsl.html("identified, click next to identify")
 
-        state.restore({ 'view':  'article', 'login': null })
-        setTimeout(function() {
+          // set up some event handlers
+          state.on('before:login=identified', function() {
+            cnsl.html("identifying...")
+          })
+
+          state.on('login=identified view=article', function () {
+            cnsl.html("click next to load the history view")
+          })
+
+          state.on('view=history', function () {
+            cnsl.html("click next to load the article view")
+          })
+        }
+        else if (state.state.login !== 'identified')
+          // second run... set login status to identified
           state.set('login', 'identified')
-        }, 1000)
-
-        // runs before transitions
-        // state.on('before:login=identified', function() { })
-
-        // runs after transitions
-        state.on('login=identified', function () {
-          // TODO:
-        })
+        else if (state.state.view !== 'history')
+          // after second run alternate between this...
+          state.set('view', 'history')
+        else
+          // ... and this
+          state.set('view', 'article')
       }
     link(rel="stylesheet", type="text/css", href="index.css")
   body
@@ -78,7 +94,10 @@ html
         | You are special
       div(data-s-view="article")
         | This is the article view
+      div(data-s-view="history")
+        | This is the history view
       div(data-s-view="!article")
         | This is the footer which can only be seen not in article view
+      div(id='state-cnsl')
       footer
-        a(href="javascript:void(0)", onclick="runStatesTest()") Run
+        a(href="javascript:void(0)", onclick="nextStatesTest()") Next
