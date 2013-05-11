@@ -29,6 +29,20 @@ node to become visible again.
   })
 ```
 
+Domos also supports transitions to and from widths/heights of "auto" seamlessly. With pure css3 the effects are browser dependent and usually not desirable.
+
+```javascript
+  domos.transition($('#id'), 'width', 'auto', function (cncld) {
+    if (! cnld) {
+      setTimeout(function() {
+        domos.transition($('#id'), 'width', '200px')
+      }, 1000)
+    }
+  })
+```
+
+Examples of this can be seen on the test page: http://nuisanceofcats.github.com/domos
+
 ## domos.state
 
 TODO
