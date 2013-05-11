@@ -33,19 +33,35 @@
       })
     })
   })
-}</script><script type="text/javascript">function runStatesTest() {
-  var state = new domos.State()
-  
-  state.restore({ 'view':  'article', 'login': null })
-  setTimeout(function() {
+}</script><script type="text/javascript">var state = null, cnsl = null
+function nextStatesTest() {
+  if (! state) {
+    // first run... initialise state
+    cnsl = $('#state-cnsl')
+    state = new domos.State()
+    state.restore({ 'view':  'article', 'login': null })
+    cnsl.html("identified, click next to identify")
+    
+    // set up some event handlers
+    state.on('before:login=identified', function() {
+      cnsl.html("identifying...")
+    })
+    
+    state.on('login=identified view=article', function () {
+      cnsl.html("click next to load the history view")
+    })
+    
+    state.on('view=history', function () {
+      cnsl.html("click next to load the article view")
+    })
+  }
+  else if (state.state.login !== 'identified')
+    // second run... set login status to identified
     state.set('login', 'identified')
-  }, 1000)
-  
-  // runs before transitions
-  // state.on('before:login=identified', function() { })
-  
-  // runs after transitions
-  state.on('login=identified', function () {
-    // TODO:
-  })
-}</script><link rel="stylesheet" type="text/css" href="index.css"/></head><body><article><h1>Transition effects</h1><div id="block3"><h1>A</h1></div><div id="block2"></div><div id="block1"></div><footer><a href="javascript:void(0)" onclick="runTransTest()">Run</a></footer></article><article><h1>States</h1><div data-s-login="!identified">Hello unidentified friend</div><div data-s-login="identified|special">Hello identified user</div><div data-s-login="special">You are special</div><div data-s-view="article">This is the article view</div><div data-s-view="!article">This is the footer which can only be seen not in article view</div><footer><a href="javascript:void(0)" onclick="runStatesTest()">Run</a></footer></article></body></html>
+  else if (state.state.view !== 'history')
+    // after second run alternate between this...
+    state.set('view', 'history')
+  else
+    // ... and this
+    state.set('view', 'article')
+}</script><link rel="stylesheet" type="text/css" href="index.css"/></head><body><article><h1>Transition effects</h1><div id="block3"><h1>A</h1></div><div id="block2"></div><div id="block1"></div><footer><a href="javascript:void(0)" onclick="runTransTest()">Run</a></footer></article><article><h1>States</h1><div data-s-login="!identified">Hello unidentified friend</div><div data-s-login="identified|special">Hello identified user</div><div data-s-login="special">You are special</div><div data-s-view="article">This is the article view</div><div data-s-view="history">This is the history view</div><div data-s-view="!article">This is the footer which can only be seen not in article view</div><div id="state-cnsl"></div><footer><a href="javascript:void(0)" onclick="nextStatesTest()">Next</a></footer></article></body></html>
