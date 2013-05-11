@@ -29,6 +29,14 @@ node to become visible again.
   })
 ```
 
+## domos.state
+
+TODO
+
+## domos.tooltip
+
+TODO
+
 ## domos.select
 ```javascript
   /// This converts a select to a javascript implementation that contains
@@ -51,3 +59,4 @@ By default an upside down triangle is drawn as a button but a callback can be pr
     }
   })
 ```
+
