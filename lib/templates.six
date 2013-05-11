@@ -92,9 +92,9 @@ var transforms = {
   text: value => function(node, model) {
     node.html(value.call(this, model))
   },
-  if: value => function(node, model, removals) {
+  if: value => function(node, model) {
     if (! value.call(this, model))
-      removals.push(node)
+      node.hide()
   }
 }
 // default transform
@@ -104,7 +104,7 @@ var setAttr = (attrName, value) =>
 // resolve node and array of positions into descendant node
 var getNode = (node, pos) => {
   pos.forEach(idx => {
-    node = $(node.children()[idx])
+    node = $(node.contents()[idx])
   })
   return node
 }
@@ -174,7 +174,14 @@ class Template {
         pos = [] //< current position whilst searching for substitutions
 
     var recurse = node => {
+      // TODO: ignore comments and treat text nodes differently
+      var isStateful = false
       _.each(node.data(), (value, key) => {
+        if (! isStateful) {
+          if (isStateful = /^s([A-Z][a-z]+)/.test(key))
+            return
+        }
+
         var match = /^t([A-Z][a-z]+)/.exec(key)
         if (! match)
           return
@@ -195,10 +202,22 @@ class Template {
         subs.push({ pos: _.clone(pos), transform })
       })
 
+      if (isStateful) {
+        // for stateful nodes then copy __domosUndo from parent otherwise
+        // transitions on that node cannot be undone.
+        subs.push({
+          pos: _.clone(pos),
+          transform(newNode) {
+            if (node[0].__domosUndo)
+              newNode[0].__domosUndo = _.clone(node[0].__domosUndo)
+          }
+        })
+      }
+
       var idx = 0
       pos.push(idx)
 
-      _.each(node.children(), child => {
+      _.each(node.contents(), child => {
         child = $(child)
         pos[pos.length - 1] = idx++
         recurse(child)
@@ -214,15 +233,11 @@ class Template {
   updateElement(model, node) {
     model = model.attributes || model
 
-    var removals = []
-
     this._subs.forEach(sub => {
       var {pos, transform} = sub
       var child = getNode(node, pos)
-      transform.call(child, child, model, removals)
+      transform.call(child, child, model)
     })
-
-    removals.forEach(node => { node.remove() })
   }
 
   /// Take a model and turn it into a node unless it already is one.
