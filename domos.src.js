@@ -655,9 +655,9 @@ define('templates',['require','exports','module'],function (require, exports) {
         };
       }.bind(this),
       if: function (value) {
-        return function (node, model, removals) {
+        return function (node, model) {
           if (!value.call(this, model))
-            removals.push(node);
+            node.hide();
         };
       }.bind(this)
     };
@@ -668,7 +668,7 @@ define('templates',['require','exports','module'],function (require, exports) {
     }.bind(this);
   var getNode = function (node, pos) {
       pos.forEach(function (idx) {
-        node = $(node.children()[idx]);
+        node = $(node.contents()[idx]);
       }.bind(this));
       return node;
     }.bind(this);
@@ -719,7 +719,12 @@ define('templates',['require','exports','module'],function (require, exports) {
       Template.prototype.parseTemplate = function (node) {
         var subs = [], pos = [];
         var recurse = function (node) {
+            var isStateful = false;
             _.each(node.data(), function (value, key) {
+              if (!isStateful) {
+                if (isStateful = /^s([A-Z][a-z]+)/.test(key))
+                  return;
+              }
               var match = /^t([A-Z][a-z]+)/.exec(key);
               if (!match)
                 return;
@@ -735,9 +740,24 @@ define('templates',['require','exports','module'],function (require, exports) {
                 transform: transform
               });
             }.bind(this));
+            if (isStateful) {
+              subs.push({
+                pos: _.clone(pos),
+                transform: function (newNode) {
+                  var undo = node[0].__domosUndo;
+                  if (undo) {
+                    newNode[0].__domosUndo = _.clone(undo);
+                    if (undo.cssType === "opacity" && undo.cssVal === "0") {
+                      newNode.css("opacity", 1);
+                      newNode.show();
+                    }
+                  }
+                }
+              });
+            }
             var idx = 0;
             pos.push(idx);
-            _.each(node.children(), function (child) {
+            _.each(node.contents(), function (child) {
               child = $(child);
               pos[pos.length - 1] = idx++;
               recurse(child);
@@ -749,14 +769,10 @@ define('templates',['require','exports','module'],function (require, exports) {
       };
       Template.prototype.updateElement = function (model, node) {
         model = model.attributes || model;
-        var removals = [];
         this._subs.forEach(function (sub) {
           var pos = sub.pos, transform = sub.transform;
           var child = getNode(node, pos);
-          transform.call(child, child, model, removals);
-        }.bind(this));
-        removals.forEach(function (node) {
-          node.remove();
+          transform.call(child, child, model);
         }.bind(this));
       };
       Template.prototype.makeElement = function (model) {
