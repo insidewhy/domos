@@ -208,8 +208,16 @@ class Template {
         subs.push({
           pos: _.clone(pos),
           transform(newNode) {
-            if (node[0].__domosUndo)
-              newNode[0].__domosUndo = _.clone(node[0].__domosUndo)
+            var undo = node[0].__domosUndo
+            if (undo) {
+              newNode[0].__domosUndo = _.clone(undo)
+              if (undo.cssType === 'opacity' && undo.cssVal === '0') {
+                // in case cloning from stateful node hidden by other means
+                // TODO: what if opacity should be something other than 1
+                newNode.css('opacity', 1)
+                newNode.show()
+              }
+            }
           }
         })
       }
