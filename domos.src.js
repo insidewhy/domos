@@ -659,6 +659,11 @@ define('templates',['require','exports','module'],function (require, exports) {
           if (!value.call(this, model))
             node.hide();
         };
+      }.bind(this),
+      "xlink:href": function (value) {
+        return function (node, model) {
+          node[0].setAttributeNS("http://www.w3.org/1999/xlink", "href", value.call(this, model));
+        };
       }.bind(this)
     };
   var setAttr = function (attrName, value) {
@@ -719,19 +724,23 @@ define('templates',['require','exports','module'],function (require, exports) {
       Template.prototype.parseTemplate = function (node) {
         var subs = [], pos = [];
         var recurse = function (node) {
-            var isStateful = false;
-            _.each(node.data(), function (value, key) {
+            var isStateful = false, attrs = node[0].attributes;
+            if (attrs === null)
+              return;
+            var rmKeys = [];
+            for (var i = 0; i < attrs.length; ++i) {
+              var key = attrs[i].name, value = attrs[i].value;
               if (!isStateful) {
-                if (isStateful = /^s([A-Z][a-z]+)/.test(key))
-                  return;
+                if (isStateful = /^data-s-/.test(key))
+                  continue;
               }
-              var match = /^t([A-Z][a-z]+)/.exec(key);
+              var match = /^data-t-([a-z:]+)/.exec(key);
               if (!match)
-                return;
-              var attr = match[1].toLowerCase();
-              node.removeAttr("data-t-" + attr);
+                continue;
+              var attr = match[1];
+              rmKeys.push(key);
               if (attr === "template")
-                return;
+                continue;
               var getValue = getValueFactory(value);
               var transform = transforms[attr];
               transform = transform ? transform(getValue) : setAttr(attr, getValue);
@@ -739,6 +748,9 @@ define('templates',['require','exports','module'],function (require, exports) {
                 pos: _.clone(pos),
                 transform: transform
               });
+            }
+            rmKeys.forEach(function (key) {
+              node.removeAttr(key);
             }.bind(this));
             if (isStateful) {
               subs.push({
