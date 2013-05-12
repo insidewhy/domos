@@ -95,6 +95,10 @@ var transforms = {
   if: value => function(node, model) {
     if (! value.call(this, model))
       node.hide()
+  },
+  'xlink:href': value => function(node, model) {
+    node[0].setAttributeNS(
+      'http://www.w3.org/1999/xlink', 'href', value.call(this, model))
   }
 }
 // default transform
@@ -175,23 +179,29 @@ class Template {
 
     var recurse = node => {
       // TODO: ignore comments and treat text nodes differently
-      var isStateful = false
-      _.each(node.data(), (value, key) => {
+      var isStateful = false, attrs = node[0].attributes
+      if (attrs === null)
+        return
+
+      var rmKeys = []
+      for (var i = 0; i < attrs.length; ++i) {
+        var key = attrs[i].name, value = attrs[i].value
+
         if (! isStateful) {
-          if (isStateful = /^s([A-Z][a-z]+)/.test(key))
-            return
+          if (isStateful = /^data-s-/.test(key))
+            continue
         }
 
-        var match = /^t([A-Z][a-z]+)/.exec(key)
+        var match = /^data-t-([a-z:]+)/.exec(key)
         if (! match)
-          return
-        var attr = match[1].toLowerCase()
+          continue
+        var attr = match[1]
 
         // remove data tag from template... jquery removeData doesn't
         // seem to work
-        node.removeAttr('data-t-' + attr)
+        rmKeys.push(key)
         if (attr === 'template')
-          return
+          continue
 
         var getValue = getValueFactory(value)
 
@@ -200,7 +210,9 @@ class Template {
                                 setAttr(attr, getValue)
 
         subs.push({ pos: _.clone(pos), transform })
-      })
+      }
+
+      rmKeys.forEach(key => { node.removeAttr(key) })
 
       if (isStateful) {
         // for stateful nodes then copy __domosUndo from parent otherwise
