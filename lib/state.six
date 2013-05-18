@@ -141,6 +141,15 @@ export class State {
       }
 
       var nTrans = transitions.length
+      // to run when all transitions have completed
+      var completedTransitions = () => {
+        if (callback)
+          callback()
+        this._trigger(type, val)
+        if (! opts.noStateChangeEvent)
+          this.trigger('state-change', this.state, changes)
+      }
+
       var runAfter = cancelled => {
         if (nTrans === -1)
           return
@@ -151,20 +160,21 @@ export class State {
             callback(cancelled)
         }
         else if (--nTrans === 0) {
-          if (callback)
-            callback()
-          this._trigger(type, val)
-          if (! opts.noStateChangeEvent)
-            this.trigger('state-change', this.state, changes)
+          completedTransitions()
         }
       }
 
-      transitions.forEach(trans => {
-        transition(trans.node,
-                   trans.action.cssType,
-                   trans.action.cssVal,
-                   runAfter)
-      })
+      if (nTrans === 0) {
+        completedTransitions()
+      }
+      else {
+        transitions.forEach(trans => {
+          transition(trans.node,
+                     trans.action.cssType,
+                     trans.action.cssVal,
+                     runAfter)
+        })
+      }
     }
 
     if (fadeOutTrans.length)
