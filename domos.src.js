@@ -355,6 +355,13 @@ define('state',['require','exports','module','./transitions','./util'],function 
               return;
             }
             var nTrans = transitions.length;
+            var completedTransitions = function () {
+                if (callback)
+                  callback();
+                this._trigger(type, val);
+                if (!opts.noStateChangeEvent)
+                  this.trigger("state-change", this.state, changes);
+              }.bind(this);
             var runAfter = function (cancelled) {
                 if (nTrans === -1)
                   return;
@@ -363,16 +370,16 @@ define('state',['require','exports','module','./transitions','./util'],function 
                   if (callback)
                     callback(cancelled);
                 } else if (--nTrans === 0) {
-                  if (callback)
-                    callback();
-                  this._trigger(type, val);
-                  if (!opts.noStateChangeEvent)
-                    this.trigger("state-change", this.state, changes);
+                  completedTransitions();
                 }
               }.bind(this);
-            transitions.forEach(function (trans) {
-              transition(trans.node, trans.action.cssType, trans.action.cssVal, runAfter);
-            }.bind(this));
+            if (nTrans === 0) {
+              completedTransitions();
+            } else {
+              transitions.forEach(function (trans) {
+                transition(trans.node, trans.action.cssType, trans.action.cssVal, runAfter);
+              }.bind(this));
+            }
           }.bind(this);
         if (fadeOutTrans.length)
           transition(fadeOutTrans, "opacity", 0, afterFadeOut);
