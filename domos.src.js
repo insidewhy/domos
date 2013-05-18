@@ -400,10 +400,9 @@ define('state',['require','exports','module','./transitions','./util'],function 
               var action = state.substr(colonIdx + 1), eqIdx = action.indexOf("=");
               if (eqIdx === -1)
                 throw new Error("invalid transition type " + action);
-              action = action.split(eqIdx);
-              cssType = action[0];
-              cssVal = action[1];
-              state = state.substr(colonIdx);
+              cssType = action.substr(0, eqIdx);
+              cssVal = action.substr(eqIdx + 1);
+              state = state.substr(0, colonIdx);
             }
             if (state[0] === "!" ? val !== state.substr(1) : val === state) {
               transitions.push({
