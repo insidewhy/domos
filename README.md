@@ -47,7 +47,7 @@ domos can optionally be used as a require module and when require is not availab
 
 ## Including domos
 ```html
-  <!-- can change versions and replace jquery with zepto -->
+  <!-- can change versions and replace jquery with equivalent -->
   <script src="http://code.jquery.com/jquery-1.9.1.min"></script>
   <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.4/underscore-min"></script>
   <script src="http://cdnjs.cloudflare.com/ajax/libs/backbone.js/0.9.10/backbone-min"></script>
@@ -62,7 +62,7 @@ domos can optionally be used as a require module and when require is not availab
   require.config({
     paths: {
       domos: 'http://nuisanceofcats.github.com/domos/domos.min.js'
-      // Use whatever versions you want, jquery can be replaced with Zepto.
+      // Use whatever versions you want, jquery can be replaced with an equivalent.
       jquery: 'http://code.jquery.com/jquery-1.9.1.min',
       underscore: 'http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.4/underscore-min',
       backbone: 'http://cdnjs.cloudflare.com/ajax/libs/backbone.js/0.9.10/backbone-min'
@@ -76,13 +76,12 @@ domos can optionally be used as a require module and when require is not availab
       }
     }
   })
-  require('backbone') // backbone must be required first
   var domos = require('domos')
   domos.transition(...)
 ```
 
 ## Dependencies
- * [Jquery](http://jquery.com) or [Zepto](http://zeptojs.com).
+ * [Jquery](http://jquery.com) or equivalents (e.g. [Zepto](http://zeptojs.com)).
  * [Backbone](http://backbonejs.org)
 
 ## Test Page
