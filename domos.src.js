@@ -308,7 +308,8 @@ define('state',['require','exports','module','./transitions','./util'],function 
                 if (callback)
                   callback(true);
               } else if (--nChangesLeft === 0) {
-                this.trigger("state-change", this.state, changes);
+                if (!opts.noStateChangeEvent)
+                  this.trigger("state-change", this.state, changes);
                 if (callback)
                   callback();
               }
@@ -316,7 +317,8 @@ define('state',['require','exports','module','./transitions','./util'],function 
           changeTypes.forEach(function (type) {
             this.set(type, val[type], onSingleStateChange, opts);
           }.bind(this));
-          this.trigger("before:state-change", this.state, changes);
+          if (!opts.noStateChangeEvent)
+            this.trigger("before:state-change", this.state, changes);
           return;
         }
         if (!opts)
@@ -385,6 +387,19 @@ define('state',['require','exports','module','./transitions','./util'],function 
           transition(fadeOutTrans, "opacity", 0, afterFadeOut);
         else
           afterFadeOut();
+      };
+      State.prototype.setAll = function (state, callback, opts) {
+        var newState = {};
+        Object.keys(state).forEach(function (key) {
+          var val = state[key];
+          if (this.state[key] !== val)
+            newState[key] = val;
+        }.bind(this));
+        Object.keys(this.state).forEach(function (key) {
+          if (!(key in state))
+            newState[key] = null;
+        }.bind(this));
+        this.set(newState, callback, opts);
       };
       State.prototype._selectorFor = function (type) {
         return this._selectorMap[type] || this._defaultSelector;
@@ -724,14 +739,14 @@ define('templates',['require','exports','module'],function (require, exports) {
       function Template(name, node) {
         this.name = name;
         this.template$ = node;
-        this._subs = this.parseTemplate(node);
+        this._subs = this._parseTemplate(node);
         node.hide();
       }
-      Template.prototype.parseTemplate = function (node) {
+      Template.prototype._parseTemplate = function (node) {
         var subs = [], pos = [];
         var recurse = function (node) {
             var isStateful = false, attrs = node[0].attributes;
-            if (attrs === null)
+            if (!attrs)
               return;
             var rmKeys = [];
             for (var i = 0; i < attrs.length; ++i) {
