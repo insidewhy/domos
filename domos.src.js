@@ -681,6 +681,28 @@ define('templates',['require','exports','module'],function (require, exports) {
             node.hide();
         };
       }.bind(this),
+      foreach: function (value, tmpltNode) {
+        tmpltNode.removeAttr("data-t-foreach");
+        var template = new Template(tmpltNode);
+        var callback = function (node, model) {
+          var data = value.call(this, model);
+          if (!(data instanceof Array))
+            throw new Error("bad foreach in domos template");
+          var eachData = data.map(function (val) {
+              if (typeof val === "string")
+                val = { model: val };
+              else
+                val = _.clone(val);
+              val.__lastIteration = false;
+              return val;
+            }.bind(this));
+          if (eachData.length) {
+            eachData[eachData.length - 1].__lastIteration = true;
+            template.instantiateCollection({ after: node }).reset(eachData);
+          }
+        };
+        return callback;
+      }.bind(this),
       "xlink:href": function (value) {
         return function (node, model) {
           node[0].setAttributeNS("http://www.w3.org/1999/xlink", "href", value.call(this, model));
@@ -693,9 +715,10 @@ define('templates',['require','exports','module'],function (require, exports) {
       };
     }.bind(this);
   var getNode = function (node, pos) {
-      pos.forEach(function (idx) {
-        node = $(node.contents()[idx]);
-      }.bind(this));
+      node = $(node[pos[0]]);
+      for (var i = 1; i < pos.length; ++i) {
+        node = $(node.contents()[pos[i]]);
+      }
       return node;
     }.bind(this);
   var valComponent = /[^\$]+|\$[a-zA-Z_][a-zA-Z0-9_]+|\${[^}]+}/g;
@@ -736,8 +759,7 @@ define('templates',['require','exports','module'],function (require, exports) {
         }.bind(this);
     }.bind(this);
   var Template = function () {
-      function Template(name, node) {
-        this.name = name;
+      function Template(node) {
         this.template$ = node;
         this._subs = this._parseTemplate(node);
         node.hide();
@@ -745,34 +767,48 @@ define('templates',['require','exports','module'],function (require, exports) {
       Template.prototype._parseTemplate = function (node) {
         var subs = [], pos = [];
         var recurse = function (node) {
+            var ignoreChildren = false;
             var isStateful = false, attrs = node[0].attributes;
             if (!attrs)
               return;
-            var rmKeys = [];
             for (var i = 0; i < attrs.length; ++i) {
-              var key = attrs[i].name, value = attrs[i].value;
-              if (!isStateful) {
-                if (isStateful = /^data-s-/.test(key))
-                  continue;
+              if (attrs[i].name === "data-t-foreach") {
+                ignoreChildren = true;
+                var value = attrs[i].value, getValue = getValueFactory(value), transform = transforms.foreach(getValue, node);
+                subs.push({
+                  pos: _.clone(pos),
+                  transform: transform
+                });
+                break;
               }
-              var match = /^data-t-([a-z:]+)/.exec(key);
-              if (!match)
-                continue;
-              var attr = match[1];
-              rmKeys.push(key);
-              if (attr === "template")
-                continue;
-              var getValue = getValueFactory(value);
-              var transform = transforms[attr];
-              transform = transform ? transform(getValue) : setAttr(attr, getValue);
-              subs.push({
-                pos: _.clone(pos),
-                transform: transform
-              });
             }
-            rmKeys.forEach(function (key) {
-              node.removeAttr(key);
-            }.bind(this));
+            if (!ignoreChildren) {
+              var rmAttrs = [];
+              for (var i = 0; i < attrs.length; ++i) {
+                var name = attrs[i].name, value = attrs[i].value;
+                if (!isStateful) {
+                  if (isStateful = /^data-s-/.test(name))
+                    continue;
+                }
+                var match = /^data-t-([a-z:]+)/.exec(name);
+                if (!match)
+                  continue;
+                var attr = match[1];
+                rmAttrs.push(name);
+                if (attr === "template")
+                  continue;
+                var getValue = getValueFactory(value);
+                var transform = transforms[attr];
+                transform = transform ? transform(getValue, node) : setAttr(attr, getValue);
+                subs.push({
+                  pos: _.clone(pos),
+                  transform: transform
+                });
+              }
+              rmAttrs.forEach(function (name) {
+                node.removeAttr(name);
+              }.bind(this));
+            }
             if (isStateful) {
               subs.push({
                 pos: _.clone(pos),
@@ -788,23 +824,35 @@ define('templates',['require','exports','module'],function (require, exports) {
                 }
               });
             }
-            var idx = 0;
-            pos.push(idx);
-            _.each(node.contents(), function (child) {
-              child = $(child);
-              pos[pos.length - 1] = idx++;
-              recurse(child);
-            }.bind(this));
-            pos.pop();
+            if (!ignoreChildren) {
+              var idx = 0;
+              pos.push(idx);
+              _.each(node.contents(), function (child) {
+                child = $(child);
+                pos[pos.length - 1] = idx++;
+                recurse(child);
+              }.bind(this));
+              pos.pop();
+            }
           }.bind(this);
-        recurse(node);
+        for (var i = 0; i < node.length; ++i) {
+          pos[0] = i;
+          recurse(node);
+        }
         return subs;
       };
       Template.prototype.updateElement = function (model, node) {
         model = model.attributes || model;
-        this._subs.forEach(function (sub) {
-          var pos = sub.pos, transform = sub.transform;
-          var child = getNode(node, pos);
+        var transforms = this._subs.map(function (sub) {
+            var pos = sub.pos, transform = sub.transform;
+            var child = getNode(node, pos);
+            return {
+              child: child,
+              transform: transform
+            };
+          }.bind(this));
+        transforms.forEach(function (sub) {
+          var child = sub.child, transform = sub.transform;
           transform.call(child, child, model);
         }.bind(this));
       };
@@ -835,7 +883,7 @@ define('templates',['require','exports','module'],function (require, exports) {
           throw new Error("could not find template");
         else if (node.length !== 1)
           throw new Error("multiple matches for template");
-        return this._templates[name] = new Template(name, node);
+        return this._templates[name] = new Template(node);
       };
       return Templates;
     }();
