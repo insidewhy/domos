@@ -96,6 +96,37 @@ var transforms = {
     if (! value.call(this, model))
       node.hide()
   },
+  foreach: (value, tmpltNode) => {
+    tmpltNode.removeAttr('data-t-foreach')
+
+    // TODO: detach tmpltNode childre
+    var template = new Template(tmpltNode)
+
+    var callback = function(node, model) {
+      // this should correspond to an array of data
+      var data = value.call(this, model)
+      if (! (data instanceof Array))
+        throw new Error("bad foreach in domos template")
+
+      var eachData = data.map(val => {
+        if (typeof val === 'string')
+          val = { model: val }
+        else
+          val = _.clone(val)
+
+        val.__lastIteration = false
+        return val
+      })
+
+      if (eachData.length) {
+        eachData[eachData.length - 1].__lastIteration = true
+        template.instantiateCollection({ after: node }).reset(eachData)
+      }
+    }
+
+    // TODO: attach template to callback
+    return callback
+  },
   'xlink:href': value => function(node, model) {
     node[0].setAttributeNS(
       'http://www.w3.org/1999/xlink', 'href', value.call(this, model))
@@ -107,9 +138,10 @@ var setAttr = (attrName, value) =>
 
 // resolve node and array of positions into descendant node
 var getNode = (node, pos) => {
-  pos.forEach(idx => {
-    node = $(node.contents()[idx])
-  })
+  node = $(node[pos[0]])
+  for (var i = 1; i < pos.length; ++i) {
+    node = $(node.contents()[pos[i]])
+  }
   return node
 }
 
@@ -155,10 +187,10 @@ var getValueFactory = value => {
 
 class Template {
   /// Construct with name and element containing template data.
+  /// @param node       Node that contains template
   /// @detail The containing template is hidden and left in place as a marker
   ///         from which created elements should be placed.
-  constructor(name, node) {
-    this.name = name
+  constructor(node) {
     this.template$ = node
 
     // array of substitutions to perform
@@ -178,41 +210,58 @@ class Template {
         pos = [] //< current position whilst searching for substitutions
 
     var recurse = node => {
+      var ignoreChildren = false
+
       // TODO: ignore comments and treat text nodes differently
       var isStateful = false, attrs = node[0].attributes
       if (! attrs)
         return
 
-      var rmKeys = []
       for (var i = 0; i < attrs.length; ++i) {
-        var key = attrs[i].name, value = attrs[i].value
+        if (attrs[i].name === 'data-t-foreach') {
+          ignoreChildren = true
 
-        if (! isStateful) {
-          if (isStateful = /^data-s-/.test(key))
-            continue
+          var value     = attrs[i].value,
+              getValue  = getValueFactory(value),
+              transform = transforms.foreach(getValue, node)
+
+          subs.push({ pos: _.clone(pos), transform })
+          break
         }
-
-        var match = /^data-t-([a-z:]+)/.exec(key)
-        if (! match)
-          continue
-        var attr = match[1]
-
-        // remove data tag from template... jquery removeData doesn't
-        // seem to work
-        rmKeys.push(key)
-        if (attr === 'template')
-          continue
-
-        var getValue = getValueFactory(value)
-
-        var transform = transforms[attr]
-        transform = transform ? transform(getValue) :
-                                setAttr(attr, getValue)
-
-        subs.push({ pos: _.clone(pos), transform })
       }
 
-      rmKeys.forEach(key => { node.removeAttr(key) })
+      if (! ignoreChildren) {
+        var rmAttrs = [] // attributes to remove
+
+        for (var i = 0; i < attrs.length; ++i) {
+          var name = attrs[i].name, value = attrs[i].value
+
+          if (! isStateful) {
+            if (isStateful = /^data-s-/.test(name))
+              continue
+          }
+
+          var match = /^data-t-([a-z:]+)/.exec(name)
+          if (! match)
+            continue
+          var attr = match[1]
+
+          // remove data tag from template... jquery removeData doesn't
+          // seem to work
+          rmAttrs.push(name)
+          if (attr === 'template')
+            continue
+
+          var getValue = getValueFactory(value)
+
+          var transform = transforms[attr]
+          transform = transform ? transform(getValue, node) :
+                                  setAttr(attr, getValue)
+          subs.push({ pos: _.clone(pos), transform })
+        }
+
+        rmAttrs.forEach(name => { node.removeAttr(name) })
+      }
 
       if (isStateful) {
         // for stateful nodes then copy __domosUndo from parent otherwise
@@ -234,28 +283,41 @@ class Template {
         })
       }
 
-      var idx = 0
-      pos.push(idx)
+      if (! ignoreChildren) {
+        var idx = 0
+        pos.push(idx)
 
-      _.each(node.contents(), child => {
-        child = $(child)
-        pos[pos.length - 1] = idx++
-        recurse(child)
-      })
+        _.each(node.contents(), child => {
+          child = $(child)
+          pos[pos.length - 1] = idx++
+          recurse(child)
+        })
 
-      pos.pop()
+        pos.pop()
+      }
     }
 
-    recurse(node)
+    for (var i = 0; i < node.length; ++i) {
+      pos[0] = i
+      recurse(node)
+    }
     return subs
   }
 
   updateElement(model, node) {
     model = model.attributes || model
 
-    this._subs.forEach(sub => {
+    // first derive pointers from this._subs before running transforms (which
+    // may change tree and affect pointer lookup)
+    var transforms = this._subs.map(sub => {
       var {pos, transform} = sub
       var child = getNode(node, pos)
+      return { child, transform }
+    })
+
+    // run transforms against safe references
+    transforms.forEach(sub => {
+      var {child, transform} = sub
       transform.call(child, child, model)
     })
   }
@@ -301,6 +363,6 @@ export class Templates {
     else if (node.length !== 1)
       throw new Error('multiple matches for template')
 
-    return this._templates[name] = new Template(name, node)
+    return this._templates[name] = new Template(node)
   }
 }
