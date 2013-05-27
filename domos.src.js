@@ -285,6 +285,7 @@ define('state',['require','exports','module','./transitions','./util'],function 
           callback = val;
           val = type;
           opts = Object.create(opts);
+          var noStateChangeEvent = opts.noStateChangeEvent;
           opts.noStateChangeEvent = true;
           var changes = {};
           var changeTypes = Object.keys(val).filter(function (type) {
@@ -308,7 +309,7 @@ define('state',['require','exports','module','./transitions','./util'],function 
                 if (callback)
                   callback(true);
               } else if (--nChangesLeft === 0) {
-                if (!opts.noStateChangeEvent)
+                if (!noStateChangeEvent)
                   this.trigger("state-change", this.state, changes);
                 if (callback)
                   callback();
