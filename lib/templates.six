@@ -162,7 +162,7 @@ class Template {
     this.template$ = node
 
     // array of substitutions to perform
-    this._subs = this.parseTemplate(node)
+    this._subs = this._parseTemplate(node)
     // console.log(this._subs)
 
     node.hide() // should also be hidden by css to avoid glitching
@@ -173,14 +173,14 @@ class Template {
   //   pos: array of indexes relating to node position.
   //   transform: transform to perform on node
   // }
-  parseTemplate(node) {
+  _parseTemplate(node) {
     var subs = [],
         pos = [] //< current position whilst searching for substitutions
 
     var recurse = node => {
       // TODO: ignore comments and treat text nodes differently
       var isStateful = false, attrs = node[0].attributes
-      if (attrs === null)
+      if (! attrs)
         return
 
       var rmKeys = []

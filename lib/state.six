@@ -81,7 +81,9 @@ export class State {
             callback(true)
         }
         else if (--nChangesLeft === 0) {
-          this.trigger('state-change', this.state, changes)
+          if (! opts.noStateChangeEvent)
+            this.trigger('state-change', this.state, changes)
+
           if (callback)
             callback()
         }
@@ -91,7 +93,8 @@ export class State {
         this.set(type, val[type], onSingleStateChange, opts)
       })
 
-      this.trigger('before:state-change', this.state, changes)
+      if (! opts.noStateChangeEvent)
+        this.trigger('before:state-change', this.state, changes)
       return
     }
 
@@ -181,6 +184,25 @@ export class State {
       transition(fadeOutTrans, 'opacity', 0, afterFadeOut)
     else
       afterFadeOut()
+  }
+
+  /// Set entire state
+  /// @detail This method uses set
+  /// @param state New state to apply.
+  setAll(state, callback, opts) {
+    var newState = {}
+    Object.keys(state).forEach(key => {
+      var val = state[key]
+      if (this.state[key] !== val)
+        newState[key] = val
+    })
+
+    Object.keys(this.state).forEach(key => {
+      if (! (key in state))
+        newState[key] = null
+    })
+
+    this.set(newState, callback, opts)
   }
 
   _selectorFor(type) {
