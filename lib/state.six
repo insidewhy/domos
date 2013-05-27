@@ -52,7 +52,8 @@ export class State {
 
       // call set for each property but aggregate events
       opts = Object.create(opts)
-      opts.noStateChangeEvent = true
+      var noStateChangeEvent = opts.noStateChangeEvent
+      opts.noStateChangeEvent = true // override for recursive set calls
 
       var changes = {}
       var changeTypes = Object.keys(val).filter(type => {
@@ -81,7 +82,7 @@ export class State {
             callback(true)
         }
         else if (--nChangesLeft === 0) {
-          if (! opts.noStateChangeEvent)
+          if (! noStateChangeEvent)
             this.trigger('state-change', this.state, changes)
 
           if (callback)
