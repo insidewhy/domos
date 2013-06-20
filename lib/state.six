@@ -3,6 +3,10 @@ import {$each, css} from './util'
 
 var isNullState = val => val === null || val === 'null'
 
+// index used to relate fade outs and ins, otherwise in certain cases state
+// changes can compete
+var lastFadeOutIdx = 0
+
 export class State {
   constructor(opts) {
     _.extend(this, Backbone.Events)
@@ -137,6 +141,8 @@ export class State {
         ++i
     }
 
+    var fadeOutIdx = ++lastFadeOutIdx
+
     var afterFadeOut = cancelled => {
       if (cancelled) {
         if (callback)
@@ -172,14 +178,27 @@ export class State {
         completedTransitions()
       }
       else {
+        // if the fadeOutIdx on anything changed it means it was cancelled
+        // by a subsequent fade in on a competing state
         transitions.forEach(trans => {
-          transition(trans.node,
-                     trans.action.cssType,
-                     trans.action.cssVal,
-                     runAfter)
+          if (trans.node[0].fadeOutIdx !== fadeOutIdx) {
+            fadeOutTrans.show()
+            runAfter(true)
+          }
+          else {
+            transition(trans.node,
+                       trans.action.cssType,
+                       trans.action.cssVal,
+                       runAfter)
+          }
         })
       }
     }
+
+    for (var i = 0; i < fadeOutTrans.length; ++i)
+      fadeOutTrans[0].fadeOutIdx = fadeOutIdx
+    for (var i = 0; i < transitions.length; ++i)
+      transitions[i].node[0].fadeOutIdx = fadeOutIdx
 
     if (fadeOutTrans.length)
       transition(fadeOutTrans, 'opacity', 0, afterFadeOut)
@@ -262,7 +281,9 @@ export class State {
           return
         }
 
-        delete nod.__domosUndo
+        // mega TODO: this has been commented out temporarily to work
+        //            around bug when fast switching.. domosUndo getting lost
+        // delete nod.__domosUndo
       }
 
       if (activated) {

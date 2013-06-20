@@ -23,6 +23,14 @@ export class Tooltip {
                                   href: 'javascript:void(0)' })
   }
 
+  // Close the tooltip and stop all actions on this tooltip from doing
+  // anything.
+  destroy() {
+    this.off('close')
+    this.close()
+    this._destroyed = true
+  }
+
   content(fields) {
     if (fields.html)
       this.$.html(fields.html)
@@ -71,6 +79,9 @@ export class Tooltip {
 
   /// Display element relative to node
   display(node, fields, conf) {
+    if (this._destroyed)
+      return
+
     this.closed = false
     if (fields)
       this.content(fields)

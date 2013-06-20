@@ -11,7 +11,7 @@ var VERY_SMALL = 0.00001
 // causes a transition. A delay is used after resetting styles as a
 // work-around.
 var STATE_INCORRECT_AFTER_SET =
-  /Firefox\/(?:1[7-9]|20)?/.test(navigator.userAgent),
+  /Firefox\/(?:1[7-9]|2[0-3])?/.test(navigator.userAgent),
     STATE_INCORRECT_AFTER_SET_LAG = 20 // 10 is a bit too small
 
 var TRANSITIONS_AUTO_AS_0px =
